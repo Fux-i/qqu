@@ -1,0 +1,15 @@
+BasedOnStyle: Microsoft
+BreakBeforeBraces: Attach
+AlwaysBreakTemplateDeclarations: Yes
+AllowShortFunctionsOnASingleLine: Empty
+
+AlignConsecutiveDeclarations:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: true
+
+AlignConsecutiveAssignments:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: true
+  PadOperators: true

@@ -1,0 +1,32 @@
+CompileFlags:
+  CompilationDatabase: build/
+  Add:
+    - -std=c++23
+    - -stdlib=libc++
+
+Diagnostics:
+  ClangTidy:
+    Add:
+      - bugprone-*
+      - cert-*
+      - clang-analyzer-*
+      - cppcoreguidelines-*
+      - misc-*
+      - modernize-*
+      - performance-*
+      - portability-*
+      - readability-*
+    Remove:
+      - readability-braces-around-statements
+      - readability-identifier-length
+      - readability-math-missing-parentheses
+      - readability-uppercase-literal-suffix
+
+# Ignore third-party code under deps/
+---
+If:
+  PathMatch: .*/deps/.*
+Diagnostics:
+  Suppress: '*'
+Index:
+  Background: Skip
