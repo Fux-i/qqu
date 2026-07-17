@@ -58,11 +58,21 @@ class spsc {
     }
 
     [[nodiscard]]
-    auto try_push(T v) noexcept -> bool {
+    auto try_push(const T &v) noexcept -> bool {
+        return try_emplace(v);
+    }
+
+    [[nodiscard]]
+    auto try_push(T &&v) noexcept -> bool {
         return try_emplace(std::move(v));
     }
 
-    auto push(T v) noexcept -> void {
+    auto push(const T &v) noexcept -> void {
+        while (!try_emplace(v))
+            ;
+    }
+
+    auto push(T &&v) noexcept -> void {
         while (!try_emplace(std::move(v)))
             ;
     }
