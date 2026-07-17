@@ -11,7 +11,7 @@ namespace qqu {
 static constexpr size_t DEFAULT_ALIGN = 64;
 
 template <typename T, size_t N, size_t ALIGN = DEFAULT_ALIGN>
-    requires(N > 1 && std::has_single_bit(N))
+    requires(N > 1 && std::has_single_bit(N) && std::is_nothrow_default_constructible_v<T>)
 class spsc {
     static constexpr size_t mask = N - 1;
 
@@ -20,12 +20,29 @@ class spsc {
     alignas(ALIGN) std::atomic<size_t> _coni{0};
 
   public:
+    [[nodiscard]]
     static constexpr auto capacity() noexcept -> size_t {
         return N;
     }
 
+    [[nodiscard]]
+    auto size() const noexcept -> size_t {
+        return _proi.load(std::memory_order_acquire) - _coni.load(std::memory_order_acquire);
+    }
+
+    [[nodiscard]]
+    auto full() const noexcept -> bool {
+        return size() == N;
+    }
+
+    [[nodiscard]]
+    auto empty() const noexcept -> bool {
+        return size() == 0;
+    }
+
     template <typename... Args>
-    auto emplace(Args &&...args) -> bool {
+    [[nodiscard]]
+    auto try_emplace(Args &&...args) noexcept -> bool {
         const size_t proi = _proi.load(std::memory_order_relaxed);
         if (proi - _coni.load(std::memory_order_acquire) == N)
             return false;
@@ -34,11 +51,24 @@ class spsc {
         return true;
     }
 
-    auto push(T v) -> bool {
-        return emplace(std::move(v));
+    template <typename... Args>
+    auto emplace(Args &&...args) noexcept -> void {
+        while (!try_emplace(std::forward<Args>(args)...))
+            ;
     }
 
-    auto pop(T &v) -> bool {
+    [[nodiscard]]
+    auto try_push(T v) noexcept -> bool {
+        return try_emplace(std::move(v));
+    }
+
+    auto push(T v) noexcept -> void {
+        while (!try_emplace(std::move(v)))
+            ;
+    }
+
+    [[nodiscard]]
+    auto try_pop(T &v) noexcept -> bool {
         const size_t coni = _coni.load(std::memory_order_relaxed);
         if (coni == _proi.load(std::memory_order_acquire))
             return false;
@@ -47,16 +77,9 @@ class spsc {
         return true;
     }
 
-    auto empty() const -> bool {
-        return _proi.load(std::memory_order_acquire) == _coni.load(std::memory_order_acquire);
-    }
-
-    auto full() const -> bool {
-        return _proi.load(std::memory_order_acquire) - _coni.load(std::memory_order_acquire) == N;
-    }
-
-    auto size() const -> size_t {
-        return _proi.load(std::memory_order_acquire) - _coni.load(std::memory_order_acquire);
+    auto pop(T &v) noexcept -> void {
+        while (!try_pop(v))
+            ;
     }
 };
 
