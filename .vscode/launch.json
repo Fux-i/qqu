@@ -5,7 +5,7 @@
       "name": "Debug",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/qqu_test",
+      "program": "${workspaceFolder}/build/qqu_test_spsc",
       "args": [],
       "cwd": "${workspaceFolder}",
     }
