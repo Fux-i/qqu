@@ -24,7 +24,7 @@ Diagnostics:
 
 ---
 If:
-  PathMatch: (deps|tests|benchmarks)/.*
+  PathMatch: (deps|src/tests|src/benchmarks)/.*
 Diagnostics:
   Suppress: '*'
 Index:

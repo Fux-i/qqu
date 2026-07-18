@@ -48,7 +48,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(googletest)
 
-add_executable(qqu_test_spsc tests/spsc.cc)
+add_executable(qqu_test_spsc src/tests/spsc.cc)
 target_link_libraries(qqu_test_spsc PRIVATE
   GTest::gtest_main
 )
