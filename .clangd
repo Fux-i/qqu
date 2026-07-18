@@ -22,10 +22,9 @@ Diagnostics:
       - readability-math-missing-parentheses
       - readability-uppercase-literal-suffix
 
-# Ignore third-party code under deps/
 ---
 If:
-  PathMatch: .*/deps/.*
+  PathMatch: (deps|tests|benchmarks)/.*
 Diagnostics:
   Suppress: '*'
 Index:

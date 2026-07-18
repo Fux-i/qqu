@@ -1,5 +1,6 @@
 BasedOnStyle: Microsoft
 BreakBeforeBraces: Attach
+BreakAfterAttributes: Always
 AlwaysBreakTemplateDeclarations: Yes
 AllowShortFunctionsOnASingleLine: Empty
 
