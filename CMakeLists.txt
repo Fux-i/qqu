@@ -54,3 +54,30 @@ target_link_libraries(qqu_test_spsc PRIVATE
 )
 include(GoogleTest)
 gtest_discover_tests(qqu_test_spsc)
+
+# --- benchmarks ---
+FetchContent_Declare(
+  SPSCQueue
+  GIT_REPOSITORY https://github.com/rigtorp/SPSCQueue.git
+  GIT_TAG v1.1
+)
+FetchContent_MakeAvailable(SPSCQueue)
+
+FetchContent_Declare(
+  atomic_queue
+  GIT_REPOSITORY https://github.com/max0x7ba/atomic_queue.git
+  GIT_TAG v1.9.2
+)
+FetchContent_MakeAvailable(atomic_queue)
+
+find_package(Threads REQUIRED)
+
+add_executable(qqu_bench_spsc src/benchmarks/spsc_bench.cc)
+target_link_libraries(qqu_bench_spsc PRIVATE
+  Threads::Threads
+  SPSCQueue::SPSCQueue
+  atomic_queue::atomic_queue
+)
+if(NOT QQU_SANITIZER OR QQU_SANITIZER STREQUAL "none")
+  target_compile_options(qqu_bench_spsc PRIVATE -O3 -march=native -DNDEBUG)
+endif()

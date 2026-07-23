@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+jobs=${JOBS:-$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)}
+suite=""
+quick=0
+cpus="${QQU_CPUS:-}"
+build=${BUILD_DIR:-"$root/build"}
+bench_args=()
+results_dir=${RESULTS_DIR:-"$root/results"}
+
+if [[ -z ${CXX+x} ]]; then
+  if command -v clang++ >/dev/null 2>&1; then
+    export CXX=clang++
+  elif command -v g++ >/dev/null 2>&1; then
+    export CXX=g++
+  fi
+fi
+
+usage() {
+  cat <<'USAGE'
+Usage: benchmark [suite] [options] [-- bench-args...]
+
+Suites:
+  spsc   qqu_bench_spsc
+  all    all bench targets (default)
+
+Options:
+  --quick         smaller N / single run (forwarded to binary)
+  --cpus P,C      pin producer,consumer (also used with taskset if present)
+  -h, --help      show this help
+
+Env:
+  BUILD_DIR     build directory (default: <repo>/build)
+  RESULTS_DIR   output directory (default: <repo>/results)
+  JOBS          parallel build jobs
+  CXX           C++ compiler
+  QQU_N QQU_RUNS QQU_CPUS   forwarded to the bench binary
+
+Examples:
+  ./scripts/benchmark
+  ./scripts/benchmark spsc
+  ./scripts/benchmark spsc --quick
+  ./scripts/benchmark spsc --cpus 0,2
+  ./scripts/benchmark spsc -- --latency -n 500000
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    --quick)
+      quick=1
+      shift
+      ;;
+    --cpus)
+      [[ $# -ge 2 ]] || { echo "benchmark: --cpus needs P,C" >&2; exit 1; }
+      cpus=$2
+      shift 2
+      ;;
+    --cpus=*)
+      cpus=${1#--cpus=}
+      shift
+      ;;
+    --)
+      shift
+      bench_args+=("$@")
+      break
+      ;;
+    -*)
+      bench_args+=("$1")
+      shift
+      ;;
+    *)
+      if [[ -z $suite ]]; then
+        suite=$1
+      else
+        bench_args+=("$1")
+      fi
+      shift
+      ;;
+  esac
+done
+
+suite=${suite:-all}
+
+case "$suite" in
+  spsc) targets=(qqu_bench_spsc) ;;
+  all)  targets=(qqu_bench_spsc) ;;
+  *)
+    echo "unknown suite: $suite" >&2
+    usage >&2
+    exit 1
+    ;;
+esac
+
+if [[ -f $build/CMakeCache.txt ]] && grep -q 'QQU_SANITIZER:[^=]*=\(asan\|tsan\|ubsan\)' "$build/CMakeCache.txt" 2>/dev/null; then
+  echo "benchmark: refusing sanitizer build dir: $build (use BUILD_DIR=build)" >&2
+  exit 1
+fi
+
+cmake_args=(-S "$root" -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release)
+if [[ ! -f $build/CMakeCache.txt ]]; then
+  cmake "${cmake_args[@]}"
+fi
+
+cmake --build "$build" --target "${targets[@]}" -j"$jobs"
+
+mkdir -p "$results_dir"
+cxx_tag=${CXX##*/}
+cxx_tag=${cxx_tag:-cxx}
+stamp=$(date -u +%Y%m%dT%H%M%S)
+
+status=0
+for t in "${targets[@]}"; do
+  out="$results_dir/${t#qqu_bench_}.$stamp.$cxx_tag.txt"
+  echo "==> $t  (build=$build) -> $out"
+
+  run=("$build/$t")
+  ((quick)) && run+=(--quick)
+  [[ -n $cpus ]] && run+=(--cpus "$cpus")
+  run+=("${bench_args[@]+"${bench_args[@]}"}")
+
+  if [[ -n $cpus ]] && command -v taskset >/dev/null 2>&1; then
+    if ! taskset -c "$cpus" "${run[@]}" | tee "$out"; then
+      status=1
+    fi
+  else
+    if ! "${run[@]}" | tee "$out"; then
+      status=1
+    fi
+  fi
+done
+exit "$status"
