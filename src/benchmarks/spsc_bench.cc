@@ -7,18 +7,22 @@
 #include <atomic_queue/atomic_queue.h>
 #include <rigtorp/SPSCQueue.h>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <limits>
 #include <print>
+#include <span>
 #include <string_view>
 #include <thread>
+#include <vector>
 
 #include <pthread.h>
 #include <sched.h>
+#include <x86intrin.h>
 
 namespace {
 
@@ -30,7 +34,10 @@ using u64   = std::uint64_t;
 constexpr u32 kCapThru     = 1u << 16;
 constexpr u32 kCapLat      = 8;
 constexpr u32 kDefaultN    = 1'000'000;
-constexpr u32 kDefaultRuns = 5;
+constexpr u32 kDefaultRuns = 10;
+// Steady-state warm on the same Q before the timed window.
+constexpr u32 kWarmThru    = 100'000;
+constexpr u32 kWarmLat     = 10'000;
 
 struct Cfg {
     u32  n     = kDefaultN;
@@ -53,6 +60,26 @@ void pin(int cpu) {
 
 void pause_spin() noexcept {
     __builtin_ia32_pause();
+}
+
+[[nodiscard]]
+u64 tsc() noexcept {
+    unsigned aux;
+    return __rdtscp(&aux);
+}
+
+// Wall-clock / TSC over ~50ms; invariant TSC assumed on Linux x86_64.
+[[nodiscard]]
+double ns_per_cycle() {
+    using namespace std::chrono_literals;
+    auto t0 = clock::now();
+    u64  c0 = tsc();
+    while (clock::now() - t0 < 50ms)
+        pause_spin();
+    u64    c1 = tsc();
+    auto   t1 = clock::now();
+    double ns = std::chrono::duration<double, std::nano>(t1 - t0).count();
+    return ns / static_cast<double>(c1 - c0);
 }
 
 // --- adapters: push / pop busy-wait, value_type = u32 ---
@@ -129,8 +156,10 @@ double once_throughput(Cfg const &cfg, Q &q) {
         sync.ready.fetch_add(1, std::memory_order_release);
         while (sync.go.load(std::memory_order_acquire) == 0)
             pause_spin();
-        u64 s = 0;
         u32 v = 0;
+        for (u32 i = 0; i < kWarmThru; ++i)
+            q.pop(v);
+        u64 s = 0;
         for (u32 i = 0; i < cfg.n; ++i) {
             q.pop(v);
             s += v;
@@ -142,8 +171,10 @@ double once_throughput(Cfg const &cfg, Q &q) {
     while (sync.ready.load(std::memory_order_acquire) < 1)
         pause_spin();
 
-    auto t0 = clock::now();
     sync.go.store(1, std::memory_order_release);
+    for (u32 i = 0; i < kWarmThru; ++i)
+        q.push(0);
+    auto t0 = clock::now();
     for (u32 i = 0; i < cfg.n; ++i)
         q.push(i + 1);
     consumer.join();
@@ -156,15 +187,36 @@ double once_throughput(Cfg const &cfg, Q &q) {
     return std::chrono::duration<double>(t1 - t0).count();
 }
 
+struct Stats {
+    double mean{}, stdev{}, min{}, max{};
+};
+
+// Sample (n-1) stdev over run metrics; stdev=0 when runs==1.
+Stats stats_of(std::span<double const> xs) {
+    double s = 0, s2 = 0, lo = xs[0], hi = xs[0];
+    for (double x : xs) {
+        s += x;
+        s2 += x * x;
+        lo = std::min(lo, x);
+        hi = std::max(hi, x);
+    }
+    double n    = static_cast<double>(xs.size());
+    double mean = s / n;
+    double var  = xs.size() > 1 ? (s2 - s * s / n) / (n - 1) : 0;
+    return {mean, std::sqrt(var), lo, hi};
+}
+
 template <class MakeQ>
 void bench_throughput(char const *name, Cfg const &cfg, MakeQ make) {
-    double best = std::numeric_limits<double>::infinity();
+    std::vector<double> mps;
+    mps.reserve(cfg.runs);
     for (u32 r = 0; r < cfg.runs; ++r) {
         auto q = make();
-        best   = std::min(best, once_throughput(cfg, q));
+        mps.push_back(double(cfg.n) / once_throughput(cfg, q));
     }
-    double mps = double(cfg.n) / best;
-    std::println("{:40} {:.0f} msgs/s", name, mps);
+    auto st = stats_of(mps);
+    std::println("{:40} mean={:.0f} stdev={:.0f} min={:.0f} max={:.0f} msgs/s", name, st.mean, st.stdev, st.min,
+                 st.max);
 }
 
 // Queues are often non-movable; hold two by value (prvalue elision).
@@ -174,8 +226,16 @@ struct Duo {
     Q q2{};
 };
 
+// Nearest-rank: p in [0,100], xs sorted ascending, non-empty.
+[[nodiscard]] double pct(std::span<double const> xs, double p) {
+    auto i = static_cast<std::size_t>(std::ceil(p / 100.0 * static_cast<double>(xs.size())) - 1.0);
+    if (i >= xs.size())
+        i = xs.size() - 1;
+    return xs[i];
+}
+
 template <class Q>
-double once_ping_pong(Cfg const &cfg, Duo<Q> &d) {
+void once_ping_pong(Cfg const &cfg, Duo<Q> &d, std::span<double> out_ns, double nspc) {
     Sync sync;
     auto peer = std::thread([&] {
         pin(cfg.cpu_c);
@@ -183,7 +243,7 @@ double once_ping_pong(Cfg const &cfg, Duo<Q> &d) {
         while (sync.go.load(std::memory_order_acquire) == 0)
             pause_spin();
         u32 v = 0;
-        for (u32 i = 0; i < cfg.n; ++i) {
+        for (u32 i = 0; i < kWarmLat + cfg.n; ++i) {
             d.q1.pop(v);
             d.q2.push(v);
         }
@@ -193,28 +253,43 @@ double once_ping_pong(Cfg const &cfg, Duo<Q> &d) {
     while (sync.ready.load(std::memory_order_acquire) < 1)
         pause_spin();
 
-    auto t0 = clock::now();
     sync.go.store(1, std::memory_order_release);
     u32 v = 0;
-    for (u32 i = 0; i < cfg.n; ++i) {
-        d.q1.push(i + 1);
+    for (u32 i = 0; i < kWarmLat; ++i) {
+        d.q1.push(0);
         d.q2.pop(v);
     }
+    for (u32 i = 0; i < cfg.n; ++i) {
+        u64 t0 = tsc();
+        d.q1.push(i + 1);
+        d.q2.pop(v);
+        out_ns[i] = static_cast<double>(tsc() - t0) * nspc;
+    }
     peer.join();
-    auto t1 = clock::now();
-    (void)v;
-    return std::chrono::duration<double>(t1 - t0).count();
 }
 
 template <class Q>
-void bench_ping_pong(char const *name, Cfg const &cfg) {
-    double best = std::numeric_limits<double>::infinity();
+void bench_ping_pong(char const *name, Cfg const &cfg, double nspc) {
+    std::vector<double> samples(static_cast<std::size_t>(cfg.n) * cfg.runs);
+    {
+        Duo<Q> d{};
+        std::vector<double> warm(cfg.n);
+        once_ping_pong(cfg, d, warm, nspc);
+    }
     for (u32 r = 0; r < cfg.runs; ++r) {
         Duo<Q> d{};
-        best = std::min(best, once_ping_pong(cfg, d));
+        auto   slice = std::span{samples}.subspan(static_cast<std::size_t>(r) * cfg.n, cfg.n);
+        once_ping_pong(cfg, d, slice, nspc);
     }
-    double rtt_ns = best / double(cfg.n) * 1e9;
-    std::println("{:40} {:.1f} ns/round-trip", name, rtt_ns);
+    std::ranges::sort(samples);
+    auto   st   = stats_of(samples);
+    double p50  = pct(samples, 50);
+    double p90  = pct(samples, 90);
+    double p99  = pct(samples, 99);
+    double p999 = pct(samples, 99.9);
+    std::println("{:40} mean={:.1f} stdev={:.1f} min={:.1f} p50={:.1f} p90={:.1f} p99={:.1f} p999={:.1f} max={:.1f} "
+                 "ns/rtt",
+                 name, st.mean, st.stdev, st.min, p50, p90, p99, p999, st.max);
 }
 
 int parse_cpu_pair(char const *s, int &a, int &b) {
@@ -287,23 +362,28 @@ Cfg parse(int argc, char **argv) {
 int main(int argc, char **argv) {
     Cfg cfg = parse(argc, argv);
 
-    std::println("# suite=spsc n={} runs={} cpus={},{} thr_cap={} lat_cap={}", cfg.n, cfg.runs, cfg.cpu_p, cfg.cpu_c,
-                 kCapThru, kCapLat);
+    double nspc = 0;
+    if (cfg.do_pp) {
+        pin(cfg.cpu_p);
+        nspc = ns_per_cycle();
+    }
+
+    std::println("# suite=spsc n={} runs={} cpus={},{} thr_cap={} lat_cap={} ns/cycle={:.4f}", cfg.n, cfg.runs,
+                 cfg.cpu_p, cfg.cpu_c, kCapThru, kCapLat, nspc);
 
     if (cfg.do_tp) {
         std::println("---- throughput (higher is better) ----");
         bench_throughput("qqu::spsc", cfg, [] { return QquThru{}; });
         bench_throughput("rigtorp::SPSCQueue", cfg, [] { return Rigtorp<kCapThru>{}; });
-        bench_throughput("atomic_queue::AtomicQueue2/SPSC", cfg, [] { return Aq<kCapThru>{}; });
+        bench_throughput("atomic_queue::AtomicQueue2", cfg, [] { return Aq<kCapThru>{}; });
         std::println("");
     }
 
     if (cfg.do_pp) {
         std::println("---- latency / ping-pong (lower is better) ----");
-        bench_ping_pong<QquLat>("qqu::spsc", cfg);
-        bench_ping_pong<Rigtorp<kCapLat>>("rigtorp::SPSCQueue", cfg);
-        bench_ping_pong<Aq<kCapLat>>("atomic_queue::AtomicQueue2/SPSC", cfg);
-        std::println("* unbounded/block-based; not capacity-fair vs rings");
+        bench_ping_pong<QquLat>("qqu::spsc", cfg, nspc);
+        bench_ping_pong<Rigtorp<kCapLat>>("rigtorp::SPSCQueue", cfg, nspc);
+        bench_ping_pong<Aq<kCapLat>>("atomic_queue::AtomicQueue2", cfg, nspc);
         std::println("");
     }
     return 0;
