@@ -1,7 +1,4 @@
-#if !defined(__linux__) || !defined(__x86_64__)
-#error "qqu targets Linux only"
-#endif
-
+#include "common.h"
 #include "spsc.h"
 
 #include <atomic_queue/atomic_queue.h>
@@ -43,7 +40,7 @@ struct Cfg {
     u32  n     = kDefaultN;
     u32  runs  = kDefaultRuns;
     int  cpu_p = 0;
-    int  cpu_c = 1;
+    int  cpu_c = 2;
     bool do_tp = true;
     bool do_pp = true;
     bool quick = false;
@@ -56,10 +53,6 @@ void pin(int cpu) {
     CPU_ZERO(&set);
     CPU_SET(static_cast<unsigned>(cpu), &set);
     (void)pthread_setaffinity_np(pthread_self(), sizeof(set), &set);
-}
-
-void pause_spin() noexcept {
-    __builtin_ia32_pause();
 }
 
 [[nodiscard]]
@@ -114,12 +107,10 @@ struct Aq {
     Q q;
 
     void push(u32 v) noexcept {
-        while (!q.try_push(v))
-            pause_spin();
+        q.push(v);
     }
     void pop(u32 &v) noexcept {
-        while (!q.try_pop(v))
-            pause_spin();
+        v = q.pop();
     }
 };
 
@@ -227,7 +218,8 @@ struct Duo {
 };
 
 // Nearest-rank: p in [0,100], xs sorted ascending, non-empty.
-[[nodiscard]] double pct(std::span<double const> xs, double p) {
+[[nodiscard]]
+double pct(std::span<double const> xs, double p) {
     auto i = static_cast<std::size_t>(std::ceil(p / 100.0 * static_cast<double>(xs.size())) - 1.0);
     if (i >= xs.size())
         i = xs.size() - 1;
@@ -272,7 +264,7 @@ template <class Q>
 void bench_ping_pong(char const *name, Cfg const &cfg, double nspc) {
     std::vector<double> samples(static_cast<std::size_t>(cfg.n) * cfg.runs);
     {
-        Duo<Q> d{};
+        Duo<Q>              d{};
         std::vector<double> warm(cfg.n);
         once_ping_pong(cfg, d, warm, nspc);
     }

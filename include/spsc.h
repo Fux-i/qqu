@@ -1,5 +1,6 @@
 #pragma once
 
+#include "common.h"
 #include <array>
 #include <atomic>
 #include <bit>
@@ -54,7 +55,7 @@ class spsc {
     template <typename... Args>
     auto emplace(Args &&...args) noexcept -> void {
         while (!try_emplace(std::forward<Args>(args)...))
-            ;
+            pause_spin();
     }
 
     [[nodiscard]]
@@ -69,12 +70,12 @@ class spsc {
 
     auto push(const T &v) noexcept -> void {
         while (!try_emplace(v))
-            ;
+            pause_spin();
     }
 
     auto push(T &&v) noexcept -> void {
         while (!try_emplace(std::move(v)))
-            ;
+            pause_spin();
     }
 
     [[nodiscard]]
@@ -89,7 +90,7 @@ class spsc {
 
     auto pop(T &v) noexcept -> void {
         while (!try_pop(v))
-            ;
+            pause_spin();
     }
 };
 
