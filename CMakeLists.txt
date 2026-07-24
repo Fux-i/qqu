@@ -79,5 +79,5 @@ target_link_libraries(qqu_bench_spsc PRIVATE
   atomic_queue::atomic_queue
 )
 if(NOT QQU_SANITIZER OR QQU_SANITIZER STREQUAL "none")
-  target_compile_options(qqu_bench_spsc PRIVATE -O3 -march=native -DNDEBUG)
+  target_compile_options(qqu_bench_spsc PRIVATE -march=native)
 endif()
