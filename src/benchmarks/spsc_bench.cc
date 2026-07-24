@@ -77,19 +77,9 @@ double ns_per_cycle() {
 
 // --- adapters: push / pop busy-wait, value_type = u32 ---
 
-struct QquThru {
-    qqu::spsc<u32, kCapThru> q;
-
-    void push(u32 v) noexcept {
-        q.push(v);
-    }
-    void pop(u32 &v) noexcept {
-        q.pop(v);
-    }
-};
-
-struct QquLat {
-    qqu::spsc<u32, kCapLat> q;
+template <unsigned Cap>
+struct Qqu {
+    qqu::spsc<u32, Cap> q;
 
     void push(u32 v) noexcept {
         q.push(v);
@@ -184,17 +174,15 @@ struct Stats {
 
 // Sample (n-1) stdev over run metrics; stdev=0 when runs==1.
 Stats stats_of(std::span<double const> xs) {
-    double s = 0, s2 = 0, lo = xs[0], hi = xs[0];
+    double s = 0, s2 = 0;
     for (double x : xs) {
         s += x;
         s2 += x * x;
-        lo = std::min(lo, x);
-        hi = std::max(hi, x);
     }
     double n    = static_cast<double>(xs.size());
     double mean = s / n;
     double var  = xs.size() > 1 ? (s2 - s * s / n) / (n - 1) : 0;
-    return {mean, std::sqrt(var), lo, hi};
+    return {mean, std::sqrt(var), xs.front(), xs.back()};
 }
 
 template <class MakeQ>
@@ -205,9 +193,15 @@ void bench_throughput(char const *name, Cfg const &cfg, MakeQ make) {
         auto q = make();
         mps.push_back(double(cfg.n) / once_throughput(cfg, q));
     }
-    auto st = stats_of(mps);
-    std::println("{:40} mean={:.0f} stdev={:.0f} min={:.0f} max={:.0f} msgs/s", name, st.mean, st.stdev, st.min,
-                 st.max);
+    std::ranges::sort(mps);
+    auto   st     = stats_of(mps);
+    auto   mid    = mps.size() / 2;
+    double median = mps.size() % 2 ? mps[mid] : (mps[mid - 1] + mps[mid]) / 2;
+
+    constexpr double m = 1e-6;
+    std::println("{:30} median={:.1f}m mean={:.1f}m stdev={:.1f}m min={:.1f}m "
+                 "max={:.1f}m msgs/s",
+                 name, median * m, st.mean * m, st.stdev * m, st.min * m, st.max * m);
 }
 
 // Queues are often non-movable; hold two by value (prvalue elision).
@@ -274,14 +268,11 @@ void bench_ping_pong(char const *name, Cfg const &cfg, double nspc) {
         once_ping_pong(cfg, d, slice, nspc);
     }
     std::ranges::sort(samples);
-    auto   st   = stats_of(samples);
     double p50  = pct(samples, 50);
     double p90  = pct(samples, 90);
     double p99  = pct(samples, 99);
     double p999 = pct(samples, 99.9);
-    std::println("{:40} mean={:.1f} stdev={:.1f} min={:.1f} p50={:.1f} p90={:.1f} p99={:.1f} p999={:.1f} max={:.1f} "
-                 "ns/rtt",
-                 name, st.mean, st.stdev, st.min, p50, p90, p99, p999, st.max);
+    std::println("{:30} p50={:.1f} p90={:.1f} p99={:.1f} p999={:.1f} ns/rtt", name, p50, p90, p99, p999);
 }
 
 int parse_cpu_pair(char const *s, int &a, int &b) {
@@ -365,7 +356,7 @@ int main(int argc, char **argv) {
 
     if (cfg.do_tp) {
         std::println("---- throughput (higher is better) ----");
-        bench_throughput("qqu::spsc", cfg, [] { return QquThru{}; });
+        bench_throughput("qqu::spsc", cfg, [] { return Qqu<kCapThru>{}; });
         bench_throughput("rigtorp::SPSCQueue", cfg, [] { return Rigtorp<kCapThru>{}; });
         bench_throughput("atomic_queue::AtomicQueue2", cfg, [] { return Aq<kCapThru>{}; });
         std::println("");
@@ -373,7 +364,7 @@ int main(int argc, char **argv) {
 
     if (cfg.do_pp) {
         std::println("---- latency / ping-pong (lower is better) ----");
-        bench_ping_pong<QquLat>("qqu::spsc", cfg, nspc);
+        bench_ping_pong<Qqu<kCapLat>>("qqu::spsc", cfg, nspc);
         bench_ping_pong<Rigtorp<kCapLat>>("rigtorp::SPSCQueue", cfg, nspc);
         bench_ping_pong<Aq<kCapLat>>("atomic_queue::AtomicQueue2", cfg, nspc);
         std::println("");
