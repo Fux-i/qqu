@@ -12,7 +12,8 @@ namespace qqu {
 static constexpr size_t DEFAULT_ALIGN = 64;
 
 template <typename T, size_t N, size_t ALIGN = DEFAULT_ALIGN>
-    requires(N > 1 && std::has_single_bit(N) && std::is_nothrow_default_constructible_v<T>)
+    requires(N > 1 && std::has_single_bit(N) &&
+             std::is_nothrow_default_constructible_v<T>)
 class spsc {
     static constexpr size_t mask = N - 1;
 
@@ -28,7 +29,8 @@ class spsc {
 
     [[nodiscard]]
     auto size() const noexcept -> size_t {
-        return _proi.load(std::memory_order_acquire) - _coni.load(std::memory_order_acquire);
+        return _proi.load(std::memory_order_acquire) -
+               _coni.load(std::memory_order_acquire);
     }
 
     [[nodiscard]]

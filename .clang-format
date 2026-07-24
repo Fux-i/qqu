@@ -14,3 +14,5 @@ AlignConsecutiveAssignments:
   AcrossEmptyLines: false
   AcrossComments: true
   PadOperators: true
+
+ColumnLimit: 80

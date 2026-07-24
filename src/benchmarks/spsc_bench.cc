@@ -27,7 +27,8 @@ using clock = std::chrono::steady_clock;
 using u32   = std::uint32_t;
 using u64   = std::uint64_t;
 
-// Throughput: large ring. Latency: small (still >1 so empty/full paths stay real).
+// Throughput: large ring. Latency: small (still >1 so empty/full paths stay
+// real).
 constexpr u32 kCapThru     = 1u << 16;
 constexpr u32 kCapLat      = 8;
 constexpr u32 kDefaultN    = 1'000'000;
@@ -89,8 +90,8 @@ struct Qqu {
     }
 };
 
-// atomic_queue SPSC: SIZE capacity, no minimize-contention shuffle, no maximize-throughput.
-// AtomicQueue2 avoids NIL reservation on the value domain.
+// atomic_queue SPSC: SIZE capacity, no minimize-contention shuffle, no
+// maximize-throughput. AtomicQueue2 avoids NIL reservation on the value domain.
 template <unsigned Cap>
 struct Aq {
     using Q = atomic_queue::AtomicQueue2<u32, Cap, false, false, false, true>;
@@ -201,7 +202,8 @@ void bench_throughput(char const *name, Cfg const &cfg, MakeQ make) {
     constexpr double m = 1e-6;
     std::println("{:30} median={:.1f}m mean={:.1f}m stdev={:.1f}m min={:.1f}m "
                  "max={:.1f}m msgs/s",
-                 name, median * m, st.mean * m, st.stdev * m, st.min * m, st.max * m);
+                 name, median * m, st.mean * m, st.stdev * m, st.min * m,
+                 st.max * m);
 }
 
 // Queues are often non-movable; hold two by value (prvalue elision).
@@ -214,14 +216,16 @@ struct Duo {
 // Nearest-rank: p in [0,100], xs sorted ascending, non-empty.
 [[nodiscard]]
 double pct(std::span<double const> xs, double p) {
-    auto i = static_cast<std::size_t>(std::ceil(p / 100.0 * static_cast<double>(xs.size())) - 1.0);
+    auto i = static_cast<std::size_t>(
+        std::ceil(p / 100.0 * static_cast<double>(xs.size())) - 1.0);
     if (i >= xs.size())
         i = xs.size() - 1;
     return xs[i];
 }
 
 template <class Q>
-void once_ping_pong(Cfg const &cfg, Duo<Q> &d, std::span<double> out_ns, double nspc) {
+void once_ping_pong(Cfg const &cfg, Duo<Q> &d, std::span<double> out_ns,
+                    double nspc) {
     Sync sync;
     auto peer = std::thread([&] {
         pin(cfg.cpu_c);
@@ -264,7 +268,8 @@ void bench_ping_pong(char const *name, Cfg const &cfg, double nspc) {
     }
     for (u32 r = 0; r < cfg.runs; ++r) {
         Duo<Q> d{};
-        auto   slice = std::span{samples}.subspan(static_cast<std::size_t>(r) * cfg.n, cfg.n);
+        auto   slice = std::span{samples}.subspan(
+            static_cast<std::size_t>(r) * cfg.n, cfg.n);
         once_ping_pong(cfg, d, slice, nspc);
     }
     std::ranges::sort(samples);
@@ -272,7 +277,8 @@ void bench_ping_pong(char const *name, Cfg const &cfg, double nspc) {
     double p90  = pct(samples, 90);
     double p99  = pct(samples, 99);
     double p999 = pct(samples, 99.9);
-    std::println("{:30} p50={:.1f} p90={:.1f} p99={:.1f} p999={:.1f} ns/rtt", name, p50, p90, p99, p999);
+    std::println("{:30} p50={:.1f} p90={:.1f} p99={:.1f} p999={:.1f} ns/rtt",
+                 name, p50, p90, p99, p999);
 }
 
 int parse_cpu_pair(char const *s, int &a, int &b) {
@@ -286,7 +292,8 @@ int parse_cpu_pair(char const *s, int &a, int &b) {
 
 void usage(char const *argv0) {
     std::println(stderr,
-                 "Usage: {} [--throughput|--latency|--all] [--quick] [--cpus P,C] [-n N] [-r RUNS]\nEnv: QQU_N "
+                 "Usage: {} [--throughput|--latency|--all] [--quick] [--cpus "
+                 "P,C] [-n N] [-r RUNS]\nEnv: QQU_N "
                  "QQU_RUNS QQU_CPUS",
                  argv0);
 }
@@ -351,14 +358,18 @@ int main(int argc, char **argv) {
         nspc = ns_per_cycle();
     }
 
-    std::println("# suite=spsc n={} runs={} cpus={},{} thr_cap={} lat_cap={} ns/cycle={:.4f}", cfg.n, cfg.runs,
-                 cfg.cpu_p, cfg.cpu_c, kCapThru, kCapLat, nspc);
+    std::println("# suite=spsc n={} runs={} cpus={},{} thr_cap={} lat_cap={} "
+                 "ns/cycle={:.4f}",
+                 cfg.n, cfg.runs, cfg.cpu_p, cfg.cpu_c, kCapThru, kCapLat,
+                 nspc);
 
     if (cfg.do_tp) {
         std::println("---- throughput (higher is better) ----");
         bench_throughput("qqu::spsc", cfg, [] { return Qqu<kCapThru>{}; });
-        bench_throughput("rigtorp::SPSCQueue", cfg, [] { return Rigtorp<kCapThru>{}; });
-        bench_throughput("atomic_queue::AtomicQueue2", cfg, [] { return Aq<kCapThru>{}; });
+        bench_throughput("rigtorp::SPSCQueue", cfg,
+                         [] { return Rigtorp<kCapThru>{}; });
+        bench_throughput("atomic_queue::AtomicQueue2", cfg,
+                         [] { return Aq<kCapThru>{}; });
         std::println("");
     }
 
