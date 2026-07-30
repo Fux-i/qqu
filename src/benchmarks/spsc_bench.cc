@@ -75,7 +75,10 @@ void pin(int cpu) {
     cpu_set_t set;
     CPU_ZERO(&set);
     CPU_SET(static_cast<unsigned>(cpu), &set);
-    (void)pthread_setaffinity_np(pthread_self(), sizeof(set), &set);
+    if (pthread_setaffinity_np(pthread_self(), sizeof(set), &set) != 0) {
+        std::print(stderr, "pthread_setaffinity_np");
+        std::exit(EXIT_FAILURE);
+    }
 }
 
 [[nodiscard]]
