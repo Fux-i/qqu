@@ -11,8 +11,10 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
 #include <print>
 #include <span>
+#include <string>
 #include <string_view>
 #include <thread>
 #include <vector>
@@ -46,6 +48,26 @@ struct Cfg {
     bool do_pp = true;
     bool quick = false;
 };
+
+// cross-core (default): distinct physical cores, e.g. 0,2
+// same-core: sibling threads on one core, e.g. 0,1
+[[nodiscard]]
+char const *pin_topology(int cpu_p, int cpu_c) {
+    auto core_id = [](int cpu) -> int {
+        if (cpu < 0)
+            return -1;
+        std::ifstream in("/sys/devices/system/cpu/cpu" + std::to_string(cpu) +
+                         "/topology/core_id");
+        int           id = -1;
+        if (!(in >> id))
+            return -1;
+        return id;
+    };
+    int a = core_id(cpu_p), b = core_id(cpu_c);
+    if (a < 0 || b < 0)
+        return "unknown";
+    return a == b ? "same-core" : "cross-core";
+}
 
 void pin(int cpu) {
     if (cpu < 0)
@@ -292,20 +314,25 @@ int parse_cpu_pair(char const *s, int &a, int &b) {
 
 void usage(char const *argv0) {
     std::println(stderr,
-                 "Usage: {} [--throughput|--latency|--all] [--quick] [--cpus "
-                 "P,C] [-n N] [-r RUNS]\nEnv: QQU_N "
-                 "QQU_RUNS QQU_CPUS",
+                 "Usage: {} [--throughput|--latency|--all] [--quick] "
+                 "[--scenario cross|smt] [--cpus P,C] [-n N] [-r RUNS]\n"
+                 "  --scenario cross  different physical cores (default 0,2)\n"
+                 "  --scenario smt    same-core SMT siblings (default 0,1)\n"
+                 "Env: QQU_N QQU_RUNS QQU_CPUS",
                  argv0);
 }
 
 Cfg parse(int argc, char **argv) {
-    Cfg c;
+    Cfg  c;
+    bool cpus_set = false;
     if (char const *e = std::getenv("QQU_N"))
         c.n = static_cast<u32>(std::strtoul(e, nullptr, 10));
     if (char const *e = std::getenv("QQU_RUNS"))
         c.runs = static_cast<u32>(std::strtoul(e, nullptr, 10));
-    if (char const *e = std::getenv("QQU_CPUS"))
-        (void)parse_cpu_pair(e, c.cpu_p, c.cpu_c);
+    if (char const *e = std::getenv("QQU_CPUS")) {
+        if (parse_cpu_pair(e, c.cpu_p, c.cpu_c) == 0)
+            cpus_set = true;
+    }
 
     for (int i = 1; i < argc; ++i) {
         std::string_view a = argv[i];
@@ -322,11 +349,28 @@ Cfg parse(int argc, char **argv) {
             c.do_tp = c.do_pp = true;
         } else if (a == "--quick") {
             c.quick = true;
+        } else if (a == "--scenario" && i + 1 < argc) {
+            std::string_view s = argv[++i];
+            if (s == "cross") {
+                if (!cpus_set) {
+                    c.cpu_p = 0;
+                    c.cpu_c = 2;
+                }
+            } else if (s == "smt") {
+                if (!cpus_set) {
+                    c.cpu_p = 0;
+                    c.cpu_c = 1;
+                }
+            } else {
+                usage(argv[0]);
+                std::exit(2);
+            }
         } else if (a == "--cpus" && i + 1 < argc) {
             if (parse_cpu_pair(argv[++i], c.cpu_p, c.cpu_c)) {
                 usage(argv[0]);
                 std::exit(2);
             }
+            cpus_set = true;
         } else if (a == "-n" && i + 1 < argc) {
             c.n = static_cast<u32>(std::strtoul(argv[++i], nullptr, 10));
         } else if (a == "-r" && i + 1 < argc) {
@@ -358,9 +402,10 @@ int main(int argc, char **argv) {
         nspc = ns_per_cycle();
     }
 
-    std::println("# suite=spsc n={} runs={} cpus={},{} thr_cap={} lat_cap={} "
-                 "ns/cycle={:.4f}",
-                 cfg.n, cfg.runs, cfg.cpu_p, cfg.cpu_c, kCapThru, kCapLat,
+    char const *topo = pin_topology(cfg.cpu_p, cfg.cpu_c);
+    std::println("# suite=spsc n={} runs={} cpus={},{} [{}] thr_cap={} "
+                 "lat_cap={} ns/cycle={:.4f}",
+                 cfg.n, cfg.runs, cfg.cpu_p, cfg.cpu_c, topo, kCapThru, kCapLat,
                  nspc);
 
     if (cfg.do_tp) {

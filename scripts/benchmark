@@ -29,6 +29,8 @@ Suites:
 Options:
   --quick         smaller N / single run (forwarded to binary)
   --cpus P,C      pin producer,consumer (also used with taskset if present)
+  --scenario S    cross (default, different cores) or smt (same-core SMT)
+  --smt           alias for --scenario smt (cpus 0,1 unless --cpus set)
   -h, --help      show this help
 
 Env:
@@ -43,10 +45,13 @@ Examples:
   ./scripts/benchmark spsc
   ./scripts/benchmark spsc --quick
   ./scripts/benchmark spsc --cpus 0,2
+  ./scripts/benchmark spsc --smt
+  ./scripts/benchmark spsc --scenario smt --cpus 0,1
   ./scripts/benchmark spsc -- --latency -n 500000
 USAGE
 }
 
+scenario=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -h | --help)
@@ -55,6 +60,19 @@ while [[ $# -gt 0 ]]; do
       ;;
     --quick)
       quick=1
+      shift
+      ;;
+    --smt)
+      scenario=smt
+      shift
+      ;;
+    --scenario)
+      [[ $# -ge 2 ]] || { echo "benchmark: --scenario needs cross|smt" >&2; exit 1; }
+      scenario=$2
+      shift 2
+      ;;
+    --scenario=*)
+      scenario=${1#--scenario=}
       shift
       ;;
     --cpus)
@@ -85,6 +103,17 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ -n $scenario && $scenario != cross && $scenario != smt ]]; then
+  echo "benchmark: --scenario must be cross or smt" >&2
+  exit 1
+fi
+if [[ $scenario == smt && -z $cpus ]]; then
+  cpus=0,1
+fi
+if [[ $scenario == cross && -z $cpus ]]; then
+  cpus=0,2
+fi
 
 suite=${suite:-all}
 
@@ -178,6 +207,7 @@ for t in "${targets[@]}"; do
 
   run=("$build/$t")
   ((quick)) && run+=(--quick)
+  [[ -n $scenario ]] && run+=(--scenario "$scenario")
   [[ -n $cpus ]] && run+=(--cpus "$cpus")
   run+=("${bench_args[@]+"${bench_args[@]}"}")
 
