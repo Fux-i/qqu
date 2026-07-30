@@ -5,6 +5,7 @@
 #include <rigtorp/SPSCQueue.h>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <barrier>
 #include <chrono>
@@ -13,7 +14,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <functional>
 #include <print>
+#include <random>
 #include <span>
 #include <string>
 #include <string_view>
@@ -216,14 +219,7 @@ Stats stats_of(std::span<double const> xs) {
     return {mean, std::sqrt(var), xs.front(), xs.back()};
 }
 
-template <class MakeQ>
-void bench_throughput(char const *name, Cfg const &cfg, MakeQ make) {
-    std::vector<double> mps;
-    mps.reserve(cfg.runs);
-    for (u32 r = 0; r < cfg.runs; ++r) {
-        auto q = make();
-        mps.push_back(double(cfg.n) / once_throughput(cfg, q));
-    }
+void print_throughput(char const *name, std::vector<double> &mps) {
     std::ranges::sort(mps);
     auto   st     = stats_of(mps);
     auto   mid    = mps.size() / 2;
@@ -234,6 +230,24 @@ void bench_throughput(char const *name, Cfg const &cfg, MakeQ make) {
                  "max={:.1f}m msgs/s",
                  name, median * m, st.mean * m, st.stdev * m, st.min * m,
                  st.max * m);
+}
+
+struct Competitor {
+    char const                                *name;
+    std::vector<double>                        samples;
+    std::function<void(std::vector<double> &)> run;
+};
+
+template <std::size_t N>
+void run_rounds(std::array<Competitor, N> &competitors, u32 runs) {
+    std::array<std::size_t, N> order{};
+    std::ranges::iota(order, std::size_t{0});
+    std::mt19937 rng(std::random_device{}());
+    for (u32 round = 0; round < runs; ++round) {
+        std::ranges::shuffle(order, rng);
+        for (auto i : order)
+            competitors[i].run(competitors[i].samples);
+    }
 }
 
 // Queues are often non-movable; hold two by value (prvalue elision).
@@ -288,20 +302,7 @@ void once_ping_pong(Cfg const &cfg, Duo<Q> &d, std::span<double> out_ns,
     peer.join();
 }
 
-template <class Q>
-void bench_ping_pong(char const *name, Cfg const &cfg, double nspc) {
-    std::vector<double> samples(static_cast<std::size_t>(cfg.n) * cfg.runs);
-    {
-        Duo<Q>              d{};
-        std::vector<double> warm(cfg.n);
-        once_ping_pong(cfg, d, warm, nspc);
-    }
-    for (u32 r = 0; r < cfg.runs; ++r) {
-        Duo<Q> d{};
-        auto   slice = std::span{samples}.subspan(
-            static_cast<std::size_t>(r) * cfg.n, cfg.n);
-        once_ping_pong(cfg, d, slice, nspc);
-    }
+void print_ping_pong(char const *name, std::vector<double> &samples) {
     std::ranges::sort(samples);
     double p50  = pct(samples, 50);
     double p90  = pct(samples, 90);
@@ -418,19 +419,75 @@ int main(int argc, char **argv) {
 
     if (cfg.do_tp) {
         std::println("---- throughput (higher is better) ----");
-        bench_throughput("qqu::spsc", cfg, [] { return Qqu<kCapThru>{}; });
-        bench_throughput("rigtorp::SPSCQueue", cfg,
-                         [] { return Rigtorp<kCapThru>{}; });
-        bench_throughput("atomic_queue::AtomicQueue2", cfg,
-                         [] { return Aq<kCapThru>{}; });
+        std::array competitors{
+            Competitor{.name    = "qqu::spsc",
+                       .samples = {},
+                       .run =
+                           [&](auto &xs) {
+                               Qqu<kCapThru> q;
+                               xs.push_back(double(cfg.n) /
+                                            once_throughput(cfg, q));
+                           }},
+            Competitor{.name    = "rigtorp::SPSCQueue",
+                       .samples = {},
+                       .run =
+                           [&](auto &xs) {
+                               Rigtorp<kCapThru> q;
+                               xs.push_back(double(cfg.n) /
+                                            once_throughput(cfg, q));
+                           }},
+            Competitor{.name    = "atomic_queue::AtomicQueue2",
+                       .samples = {},
+                       .run =
+                           [&](auto &xs) {
+                               Aq<kCapThru> q;
+                               xs.push_back(double(cfg.n) /
+                                            once_throughput(cfg, q));
+                           }},
+        };
+        run_rounds(competitors, cfg.runs);
+        for (auto &competitor : competitors)
+            print_throughput(competitor.name, competitor.samples);
         std::println("");
     }
 
     if (cfg.do_pp) {
         std::println("---- latency / ping-pong (lower is better) ----");
-        bench_ping_pong<Qqu<kCapLat>>("qqu::spsc", cfg, nspc);
-        bench_ping_pong<Rigtorp<kCapLat>>("rigtorp::SPSCQueue", cfg, nspc);
-        bench_ping_pong<Aq<kCapLat>>("atomic_queue::AtomicQueue2", cfg, nspc);
+        auto run = [&]<class Q>(std::vector<double> &xs) {
+            auto offset = xs.size();
+            xs.resize(offset + cfg.n);
+            Duo<Q> d;
+            once_ping_pong(cfg, d, std::span{xs}.subspan(offset, cfg.n), nspc);
+        };
+        std::array competitors{
+            Competitor{.name    = "qqu::spsc",
+                       .samples = {},
+                       .run =
+                           [&](auto &xs) {
+                               run.template operator()<Qqu<kCapLat>>(xs);
+                           }},
+            Competitor{.name    = "rigtorp::SPSCQueue",
+                       .samples = {},
+                       .run =
+                           [&](auto &xs) {
+                               run.template operator()<Rigtorp<kCapLat>>(xs);
+                           }},
+            Competitor{.name    = "atomic_queue::AtomicQueue2",
+                       .samples = {},
+                       .run =
+                           [&](auto &xs) {
+                               run.template operator()<Aq<kCapLat>>(xs);
+                           }},
+        };
+        for (auto &competitor : competitors) {
+            competitor.run(competitor.samples);
+            competitor.samples.clear();
+            competitor.samples.reserve(static_cast<std::size_t>(cfg.n) *
+                                       cfg.runs);
+        }
+        run_rounds(competitors, cfg.runs);
+        for (auto &competitor : competitors)
+            print_ping_pong(competitor.name, competitor.samples);
         std::println("");
     }
     return 0;
