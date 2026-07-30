@@ -42,6 +42,7 @@ constexpr u32 kDefaultRuns = 10;
 // Steady-state warm on the same Q before the timed window.
 constexpr u32 kWarmThru    = 100'000;
 constexpr u32 kWarmLat     = 10'000;
+constexpr u32 kTscSamples  = 100'001;
 
 struct Cfg {
     u32  n     = kDefaultN;
@@ -86,20 +87,28 @@ void pin(int cpu) {
 }
 
 [[nodiscard]]
-u64 tsc() noexcept {
+u64 tsc_start() noexcept {
+    _mm_lfence();
+    return __rdtsc();
+}
+
+[[nodiscard]]
+u64 tsc_end() noexcept {
     unsigned aux;
-    return __rdtscp(&aux);
+    u64      tsc = __rdtscp(&aux);
+    _mm_lfence();
+    return tsc;
 }
 
 // Wall-clock / TSC over ~50ms; invariant TSC assumed on Linux x86_64.
 [[nodiscard]]
-double ns_per_cycle() {
+double ns_per_tsc_tick() {
     using namespace std::chrono_literals;
     auto t0 = clock::now();
-    u64  c0 = tsc();
+    u64  c0 = tsc_start();
     while (clock::now() - t0 < 50ms)
         pause_spin();
-    u64    c1 = tsc();
+    u64    c1 = tsc_end();
     auto   t1 = clock::now();
     double ns = std::chrono::duration<double, std::nano>(t1 - t0).count();
     return ns / static_cast<double>(c1 - c0);
@@ -267,9 +276,23 @@ double pct(std::span<double const> xs, double p) {
     return xs[i];
 }
 
+void print_tsc_overhead(double nspt) {
+    std::vector<u64> samples(kTscSamples);
+    for (u64 &sample : samples) {
+        u64 t0 = tsc_start();
+        sample = tsc_end() - t0;
+    }
+    std::ranges::sort(samples);
+    u64 median = samples[samples.size() / 2];
+    u64 p99    = samples[(samples.size() * 99 + 99) / 100 - 1];
+    std::println("TSC read overhead: median: {} ticks = {:.1f} ns; p99: {} ticks = {:.1f} ns",
+                 median, static_cast<double>(median) * nspt, p99,
+                 static_cast<double>(p99) * nspt);
+}
+
 template <class Q>
 void once_ping_pong(Cfg const &cfg, Duo<Q> &d, std::span<double> out_ns,
-                    double nspc) {
+                    double nspt) {
     Sync sync;
     auto peer = std::thread([&] {
         pin(cfg.cpu_c);
@@ -294,10 +317,10 @@ void once_ping_pong(Cfg const &cfg, Duo<Q> &d, std::span<double> out_ns,
         d.q2.pop(v);
     }
     for (u32 i = 0; i < cfg.n; ++i) {
-        u64 t0 = tsc();
+        u64 t0 = tsc_start();
         d.q1.push(i + 1);
         d.q2.pop(v);
-        out_ns[i] = static_cast<double>(tsc() - t0) * nspc;
+        out_ns[i] = static_cast<double>(tsc_end() - t0) * nspt;
     }
     peer.join();
 }
@@ -405,17 +428,17 @@ Cfg parse(int argc, char **argv) {
 int main(int argc, char **argv) {
     Cfg cfg = parse(argc, argv);
 
-    double nspc = 0;
+    double nspt = 0;
     if (cfg.do_pp) {
         pin(cfg.cpu_p);
-        nspc = ns_per_cycle();
+        nspt = ns_per_tsc_tick();
     }
 
     char const *topo = pin_topology(cfg.cpu_p, cfg.cpu_c);
     std::println("# suite=spsc n={} runs={} cpus={},{} [{}] thr_cap={} "
-                 "lat_cap={} ns/cycle={:.4f}",
+                 "lat_cap={} ns/tsc_tick={:.4f}",
                  cfg.n, cfg.runs, cfg.cpu_p, cfg.cpu_c, topo, kCapThru, kCapLat,
-                 nspc);
+                 nspt);
 
     if (cfg.do_tp) {
         std::println("---- throughput (higher is better) ----");
@@ -452,12 +475,13 @@ int main(int argc, char **argv) {
     }
 
     if (cfg.do_pp) {
+        print_tsc_overhead(nspt);
         std::println("---- latency / ping-pong (lower is better) ----");
         auto run = [&]<class Q>(std::vector<double> &xs) {
             auto offset = xs.size();
             xs.resize(offset + cfg.n);
             Duo<Q> d;
-            once_ping_pong(cfg, d, std::span{xs}.subspan(offset, cfg.n), nspc);
+            once_ping_pong(cfg, d, std::span{xs}.subspan(offset, cfg.n), nspt);
         };
         std::array competitors{
             Competitor{.name    = "qqu::spsc",
