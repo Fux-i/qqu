@@ -212,8 +212,26 @@ double once_throughput(Cfg const &cfg, Q &q) {
 }
 
 struct Stats {
-    double mean{}, stdev{}, min{}, max{};
+    double mean{}, stdev{}, ci95{}, min{}, max{};
 };
+
+double t95(std::size_t df) {
+    if (df == 1)
+        return 12.706;
+    if (df == 2)
+        return 4.303;
+    if (df == 3)
+        return 3.182;
+    if (df == 4)
+        return 2.776;
+    constexpr double z = 1.959964;
+    double const     v = static_cast<double>(df);
+    return z + (std::pow(z, 3) + z) / (4 * v) +
+           (5 * std::pow(z, 5) + 16 * std::pow(z, 3) + 3 * z) / (96 * v * v) +
+           (3 * std::pow(z, 7) + 19 * std::pow(z, 5) + 17 * std::pow(z, 3) -
+            15 * z) /
+               (384 * v * v * v);
+}
 
 // Sample (n-1) stdev over run metrics; stdev=0 when runs==1.
 Stats stats_of(std::span<double const> xs) {
@@ -222,33 +240,43 @@ Stats stats_of(std::span<double const> xs) {
         s += x;
         s2 += x * x;
     }
-    double n    = static_cast<double>(xs.size());
-    double mean = s / n;
-    double var  = xs.size() > 1 ? (s2 - s * s / n) / (n - 1) : 0;
-    return {mean, std::sqrt(var), xs.front(), xs.back()};
+    double n     = static_cast<double>(xs.size());
+    double mean  = s / n;
+    double var   = xs.size() > 1 ? (s2 - s * s / n) / (n - 1) : 0;
+    double stdev = std::sqrt(var);
+    double ci95 = xs.size() > 1 ? t95(xs.size() - 1) * stdev / std::sqrt(n) : 0;
+    return {mean, stdev, ci95, xs.front(), xs.back()};
 }
 
 void print_throughput(char const *name, std::vector<double> &mps) {
+    for (std::size_t i = 0; i < mps.size(); ++i)
+        std::println("raw metric=throughput queue={} run={} msgs_per_s={:.3f}",
+                     name, i + 1, mps[i]);
     std::ranges::sort(mps);
     auto   st     = stats_of(mps);
     auto   mid    = mps.size() / 2;
     double median = mps.size() % 2 ? mps[mid] : (mps[mid - 1] + mps[mid]) / 2;
 
     constexpr double m = 1e-6;
-    std::println("{:30} median={:.1f}m mean={:.1f}m stdev={:.1f}m min={:.1f}m "
-                 "max={:.1f}m msgs/s",
-                 name, median * m, st.mean * m, st.stdev * m, st.min * m,
-                 st.max * m);
+    std::print("{:30} mean={:.1f}m ", name, st.mean * m);
+    if (mps.size() > 1)
+        std::print("95%CI=[{:.1f}m,{:.1f}m] ", (st.mean - st.ci95) * m,
+                   (st.mean + st.ci95) * m);
+    else
+        std::print("95%CI=n/a ");
+    std::println("median={:.1f}m stdev={:.1f}m min={:.1f}m max={:.1f}m msgs/s",
+                 median * m, st.stdev * m, st.min * m, st.max * m);
 }
 
+template <class T>
 struct Competitor {
-    char const                                *name;
-    std::vector<double>                        samples;
-    std::function<void(std::vector<double> &)> run;
+    char const                           *name;
+    std::vector<T>                        samples;
+    std::function<void(std::vector<T> &)> run;
 };
 
-template <std::size_t N>
-void run_rounds(std::array<Competitor, N> &competitors, u32 runs) {
+template <class T, std::size_t N>
+void run_rounds(std::array<Competitor<T>, N> &competitors, u32 runs) {
     std::array<std::size_t, N> order{};
     std::ranges::iota(order, std::size_t{0});
     std::mt19937 rng(std::random_device{}());
@@ -285,7 +313,8 @@ void print_tsc_overhead(double nspt) {
     std::ranges::sort(samples);
     u64 median = samples[samples.size() / 2];
     u64 p99    = samples[(samples.size() * 99 + 99) / 100 - 1];
-    std::println("TSC read overhead: median: {} ticks = {:.1f} ns; p99: {} ticks = {:.1f} ns",
+    std::println("TSC read overhead: median: {} ticks = {:.1f} ns; p99: {} "
+                 "ticks = {:.1f} ns",
                  median, static_cast<double>(median) * nspt, p99,
                  static_cast<double>(p99) * nspt);
 }
@@ -325,14 +354,34 @@ void once_ping_pong(Cfg const &cfg, Duo<Q> &d, std::span<double> out_ns,
     peer.join();
 }
 
-void print_ping_pong(char const *name, std::vector<double> &samples) {
-    std::ranges::sort(samples);
-    double p50  = pct(samples, 50);
-    double p90  = pct(samples, 90);
-    double p99  = pct(samples, 99);
-    double p999 = pct(samples, 99.9);
-    std::println("{:30} p50={:.1f} p90={:.1f} p99={:.1f} p999={:.1f} ns/rtt",
-                 name, p50, p90, p99, p999);
+struct Latency {
+    double p50, p90, p99, p999;
+};
+
+void print_ping_pong(char const *name, std::vector<Latency> const &runs) {
+    std::array<std::vector<double>, 4> values;
+    for (std::size_t i = 0; i < runs.size(); ++i) {
+        auto const &run = runs[i];
+        std::println("raw metric=latency queue={} run={} p50_ns={:.3f} "
+                     "p90_ns={:.3f} p99_ns={:.3f} p999_ns={:.3f}",
+                     name, i + 1, run.p50, run.p90, run.p99, run.p999);
+        values[0].push_back(run.p50);
+        values[1].push_back(run.p90);
+        values[2].push_back(run.p99);
+        values[3].push_back(run.p999);
+    }
+    std::print("{:30}", name);
+    constexpr std::array labels{"p50", "p90", "p99", "p999"};
+    for (std::size_t i = 0; i < values.size(); ++i) {
+        auto st = stats_of(values[i]);
+        std::print(" {}_mean={:.1f} ", labels[i], st.mean);
+        if (runs.size() > 1)
+            std::print("95%CI=[{:.1f},{:.1f}]", st.mean - st.ci95,
+                       st.mean + st.ci95);
+        else
+            std::print("95%CI=n/a");
+    }
+    std::println(" ns/rtt");
 }
 
 int parse_cpu_pair(char const *s, int &a, int &b) {
@@ -443,30 +492,30 @@ int main(int argc, char **argv) {
     if (cfg.do_tp) {
         std::println("---- throughput (higher is better) ----");
         std::array competitors{
-            Competitor{.name    = "qqu::spsc",
-                       .samples = {},
-                       .run =
-                           [&](auto &xs) {
-                               Qqu<kCapThru> q;
-                               xs.push_back(double(cfg.n) /
-                                            once_throughput(cfg, q));
-                           }},
-            Competitor{.name    = "rigtorp::SPSCQueue",
-                       .samples = {},
-                       .run =
-                           [&](auto &xs) {
-                               Rigtorp<kCapThru> q;
-                               xs.push_back(double(cfg.n) /
-                                            once_throughput(cfg, q));
-                           }},
-            Competitor{.name    = "atomic_queue::AtomicQueue2",
-                       .samples = {},
-                       .run =
-                           [&](auto &xs) {
-                               Aq<kCapThru> q;
-                               xs.push_back(double(cfg.n) /
-                                            once_throughput(cfg, q));
-                           }},
+            Competitor<double>{.name    = "qqu::spsc",
+                               .samples = {},
+                               .run =
+                                   [&](auto &xs) {
+                                       Qqu<kCapThru> q;
+                                       xs.push_back(double(cfg.n) /
+                                                    once_throughput(cfg, q));
+                                   }},
+            Competitor<double>{.name    = "rigtorp::SPSCQueue",
+                               .samples = {},
+                               .run =
+                                   [&](auto &xs) {
+                                       Rigtorp<kCapThru> q;
+                                       xs.push_back(double(cfg.n) /
+                                                    once_throughput(cfg, q));
+                                   }},
+            Competitor<double>{.name    = "atomic_queue::AtomicQueue2",
+                               .samples = {},
+                               .run =
+                                   [&](auto &xs) {
+                                       Aq<kCapThru> q;
+                                       xs.push_back(double(cfg.n) /
+                                                    once_throughput(cfg, q));
+                                   }},
         };
         run_rounds(competitors, cfg.runs);
         for (auto &competitor : competitors)
@@ -477,37 +526,41 @@ int main(int argc, char **argv) {
     if (cfg.do_pp) {
         print_tsc_overhead(nspt);
         std::println("---- latency / ping-pong (lower is better) ----");
-        auto run = [&]<class Q>(std::vector<double> &xs) {
-            auto offset = xs.size();
-            xs.resize(offset + cfg.n);
-            Duo<Q> d;
-            once_ping_pong(cfg, d, std::span{xs}.subspan(offset, cfg.n), nspt);
+        auto run = [&]<class Q>(std::vector<Latency> &runs) {
+            std::vector<double> samples(cfg.n);
+            Duo<Q>              d;
+            once_ping_pong(cfg, d, samples, nspt);
+            std::ranges::sort(samples);
+            runs.push_back({pct(samples, 50), pct(samples, 90),
+                            pct(samples, 99), pct(samples, 99.9)});
         };
         std::array competitors{
-            Competitor{.name    = "qqu::spsc",
-                       .samples = {},
-                       .run =
-                           [&](auto &xs) {
-                               run.template operator()<Qqu<kCapLat>>(xs);
-                           }},
-            Competitor{.name    = "rigtorp::SPSCQueue",
-                       .samples = {},
-                       .run =
-                           [&](auto &xs) {
-                               run.template operator()<Rigtorp<kCapLat>>(xs);
-                           }},
-            Competitor{.name    = "atomic_queue::AtomicQueue2",
-                       .samples = {},
-                       .run =
-                           [&](auto &xs) {
-                               run.template operator()<Aq<kCapLat>>(xs);
-                           }},
+            Competitor<Latency>{.name    = "qqu::spsc",
+                                .samples = {},
+                                .run =
+                                    [&](auto &xs) {
+                                        run.template operator()<Qqu<kCapLat>>(
+                                            xs);
+                                    }},
+            Competitor<Latency>{
+                .name    = "rigtorp::SPSCQueue",
+                .samples = {},
+                .run =
+                    [&](auto &xs) {
+                        run.template operator()<Rigtorp<kCapLat>>(xs);
+                    }},
+            Competitor<Latency>{.name    = "atomic_queue::AtomicQueue2",
+                                .samples = {},
+                                .run =
+                                    [&](auto &xs) {
+                                        run.template operator()<Aq<kCapLat>>(
+                                            xs);
+                                    }},
         };
         for (auto &competitor : competitors) {
             competitor.run(competitor.samples);
             competitor.samples.clear();
-            competitor.samples.reserve(static_cast<std::size_t>(cfg.n) *
-                                       cfg.runs);
+            competitor.samples.reserve(cfg.runs);
         }
         run_rounds(competitors, cfg.runs);
         for (auto &competitor : competitors)
