@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <barrier>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -157,7 +158,10 @@ struct Sync {
 
 template <class Q>
 double once_throughput(Cfg const &cfg, Q &q) {
-    Sync sync;
+    Sync              sync;
+    clock::time_point t0, t1;
+    std::barrier      timed(2, [&] { t0 = clock::now(); });
+
     auto consumer = std::thread([&] {
         pin(cfg.cpu_c);
         sync.ready.fetch_add(1, std::memory_order_release);
@@ -166,11 +170,13 @@ double once_throughput(Cfg const &cfg, Q &q) {
         u32 v = 0;
         for (u32 i = 0; i < kWarmThru; ++i)
             q.pop(v);
+        timed.arrive_and_wait();
         u64 s = 0;
         for (u32 i = 0; i < cfg.n; ++i) {
             q.pop(v);
             s += v;
         }
+        t1 = clock::now();
         sync.sum.store(s, std::memory_order_release);
     });
 
@@ -181,11 +187,10 @@ double once_throughput(Cfg const &cfg, Q &q) {
     sync.go.store(1, std::memory_order_release);
     for (u32 i = 0; i < kWarmThru; ++i)
         q.push(0);
-    auto t0 = clock::now();
+    timed.arrive_and_wait();
     for (u32 i = 0; i < cfg.n; ++i)
         q.push(i + 1);
     consumer.join();
-    auto t1 = clock::now();
 
     u64 expect = u64(cfg.n) * u64(cfg.n + 1) / 2;
     if (sync.sum.load(std::memory_order_acquire) != expect)
