@@ -19,7 +19,9 @@ class spsc {
 
     alignas(ALIGN) std::array<T, N> _data{};
     alignas(ALIGN) std::atomic<size_t> _proi{0};
+    size_t _cached_coni{};
     alignas(ALIGN) std::atomic<size_t> _coni{0};
+    size_t _cached_proi{};
 
   public:
     [[nodiscard]]
@@ -47,8 +49,11 @@ class spsc {
     [[nodiscard]]
     auto try_emplace(Args &&...args) noexcept -> bool {
         const size_t proi = _proi.load(std::memory_order_relaxed);
-        if (proi - _coni.load(std::memory_order_acquire) == N)
-            return false;
+        if (proi - _cached_coni == N) {
+            _cached_coni = _coni.load(std::memory_order_acquire);
+            if (proi - _cached_coni == N)
+                return false;
+        }
         _data[proi & mask] = T(std::forward<Args>(args)...);
         _proi.store(proi + 1, std::memory_order_release);
         return true;
@@ -83,8 +88,11 @@ class spsc {
     [[nodiscard]]
     auto try_pop(T &v) noexcept -> bool {
         const size_t coni = _coni.load(std::memory_order_relaxed);
-        if (coni == _proi.load(std::memory_order_acquire))
-            return false;
+        if (coni == _cached_proi) {
+            _cached_proi = _proi.load(std::memory_order_acquire);
+            if (coni == _cached_proi)
+                return false;
+        }
         v = std::move(_data[coni & mask]);
         _coni.store(coni + 1, std::memory_order_release);
         return true;
