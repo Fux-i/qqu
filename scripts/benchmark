@@ -4,7 +4,7 @@ set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 jobs=${JOBS:-$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)}
 suite=""
-quick=0
+full=0
 cpus="${QQU_CPUS:-}"
 build=${BUILD_DIR:-"$root/build"}
 bench_args=()
@@ -27,7 +27,8 @@ Suites:
   all    all bench targets (default)
 
 Options:
-  --quick         smaller N / single run (forwarded to binary)
+  --quick         capacity 1024, smaller N, single run (default)
+  --full          all capacities with the full N and run count
   --cpus P,C      pin producer,consumer (also used with taskset if present)
   --scenario S    cross (default, different cores) or smt (same-core SMT)
   --smt           alias for --scenario smt (cpus 0,1 unless --cpus set)
@@ -43,11 +44,12 @@ Env:
 Examples:
   ./scripts/benchmark
   ./scripts/benchmark spsc
-  ./scripts/benchmark spsc --quick
+  ./scripts/benchmark spsc --full
   ./scripts/benchmark spsc --cpus 0,2
   ./scripts/benchmark spsc --smt
   ./scripts/benchmark spsc --scenario smt --cpus 0,1
   ./scripts/benchmark spsc -- --latency -n 500000
+  ./scripts/plot
 USAGE
 }
 
@@ -59,7 +61,11 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     --quick)
-      quick=1
+      full=0
+      shift
+      ;;
+    --full)
+      full=1
       shift
       ;;
     --smt)
@@ -137,9 +143,8 @@ cmake "${cmake_args[@]}"
 
 cmake --build "$build" --target "${targets[@]}" -j"$jobs"
 
-mkdir -p "$results_dir"
-cxx_tag=${CXX##*/}
-cxx_tag=${cxx_tag:-cxx}
+txt_dir="$results_dir/txt"
+mkdir -p "$txt_dir"
 stamp=$(date -u +%Y%m%dT%H%M%S)
 
 metadata() {
@@ -157,6 +162,7 @@ metadata() {
     printf '# cache=%s\n' "$line"
   done
   printf '# kernel=%s\n' "$(uname -srvm)"
+  printf '# compiler=%s\n' "$compiler"
   "$compiler" --version | while IFS= read -r line; do
     printf '# compiler_version=%s\n' "$line"
   done
@@ -202,21 +208,21 @@ metadata() {
 
 status=0
 for t in "${targets[@]}"; do
-  out="$results_dir/${t#qqu_bench_}.$stamp.$cxx_tag.txt"
+  out="$txt_dir/${t#qqu_bench_}.$stamp.txt"
   echo "==> $t  (build=$build) -> $out"
 
   run=("$build/$t")
-  ((quick)) && run+=(--quick)
+  ((full)) && run+=(--full)
   [[ -n $scenario ]] && run+=(--scenario "$scenario")
   [[ -n $cpus ]] && run+=(--cpus "$cpus")
   run+=("${bench_args[@]+"${bench_args[@]}"}")
 
   if [[ -n $cpus ]] && command -v taskset >/dev/null 2>&1; then
-    if ! { metadata "$t"; taskset -c "$cpus" "${run[@]}"; } | tee "$out"; then
+    if ! { metadata "$t"; taskset -c "$cpus" "${run[@]}"; } > "$out"; then
       status=1
     fi
   else
-    if ! { metadata "$t"; "${run[@]}"; } | tee "$out"; then
+    if ! { metadata "$t"; "${run[@]}"; } > "$out"; then
       status=1
     fi
   fi

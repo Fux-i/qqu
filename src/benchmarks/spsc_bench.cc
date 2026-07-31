@@ -10,11 +10,13 @@
 #include <barrier>
 #include <chrono>
 #include <cmath>
+#include <concepts>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <functional>
+#include <memory>
 #include <print>
 #include <random>
 #include <span>
@@ -33,10 +35,14 @@ using clock = std::chrono::steady_clock;
 using u32   = std::uint32_t;
 using u64   = std::uint64_t;
 
-// Throughput: large ring. Latency: small (still >1 so empty/full paths stay
-// real).
-constexpr u32 kCapThru     = 1u << 16;
-constexpr u32 kCapLat      = 8;
+template <std::size_t Bytes>
+struct Payload {
+    std::array<u64, Bytes / sizeof(u64)> words{};
+};
+
+using Payload16 = Payload<16>;
+using Payload64 = Payload<64>;
+
 constexpr u32 kDefaultN    = 1'000'000;
 constexpr u32 kDefaultRuns = 10;
 // Steady-state warm on the same Q before the timed window.
@@ -51,7 +57,7 @@ struct Cfg {
     int  cpu_c = 2;
     bool do_tp = true;
     bool do_pp = true;
-    bool quick = false;
+    bool quick = true;
 };
 
 // cross-core (default): distinct physical cores, e.g. 0,2
@@ -114,45 +120,65 @@ double ns_per_tsc_tick() {
     return ns / static_cast<double>(c1 - c0);
 }
 
-// --- adapters: push / pop busy-wait, value_type = u32 ---
+template <class T>
+T value(u32 i) noexcept {
+    if constexpr (std::integral<T>)
+        return static_cast<T>(i);
+    else {
+        T v;
+        v.words[0] = i;
+        return v;
+    }
+}
 
-template <unsigned Cap>
+template <class T>
+u64 scalar(T const &v) noexcept {
+    if constexpr (std::integral<T>)
+        return v;
+    else
+        return v.words[0];
+}
+
+template <class T, unsigned Cap>
 struct Qqu {
-    qqu::spsc<u32, Cap> q;
+    using value_type = T;
+    qqu::spsc<T, Cap> q;
 
-    void push(u32 v) noexcept {
+    void push(T const &v) noexcept {
         q.push(v);
     }
-    void pop(u32 &v) noexcept {
+    void pop(T &v) noexcept {
         q.pop(v);
     }
 };
 
 // atomic_queue SPSC: SIZE capacity, no minimize-contention shuffle, no
 // maximize-throughput. AtomicQueue2 avoids NIL reservation on the value domain.
-template <unsigned Cap>
+template <class T, unsigned Cap>
 struct Aq {
-    using Q = atomic_queue::AtomicQueue2<u32, Cap, false, false, false, true>;
+    using value_type = T;
+    using Q = atomic_queue::AtomicQueue2<T, Cap, false, false, false, true>;
     Q q;
 
-    void push(u32 v) noexcept {
+    void push(T const &v) noexcept {
         q.push(v);
     }
-    void pop(u32 &v) noexcept {
+    void pop(T &v) noexcept {
         v = q.pop();
     }
 };
 
-template <unsigned Cap>
+template <class T, unsigned Cap>
 struct Rigtorp {
-    rigtorp::SPSCQueue<u32> q{Cap};
+    using value_type = T;
+    rigtorp::SPSCQueue<T> q{Cap};
 
-    void push(u32 v) noexcept {
+    void push(T const &v) noexcept {
         q.push(v);
     }
-    void pop(u32 &v) noexcept {
+    void pop(T &v) noexcept {
         for (;;) {
-            if (u32 *p = q.front()) {
+            if (T *p = q.front()) {
                 v = *p;
                 q.pop();
                 return;
@@ -170,6 +196,7 @@ struct Sync {
 
 template <class Q>
 double once_throughput(Cfg const &cfg, Q &q) {
+    using T = typename Q::value_type;
     Sync              sync;
     clock::time_point t0, t1;
     std::barrier      timed(2, [&] { t0 = clock::now(); });
@@ -179,14 +206,14 @@ double once_throughput(Cfg const &cfg, Q &q) {
         sync.ready.fetch_add(1, std::memory_order_release);
         while (sync.go.load(std::memory_order_acquire) == 0)
             pause_spin();
-        u32 v = 0;
+        T v{};
         for (u32 i = 0; i < kWarmThru; ++i)
             q.pop(v);
         timed.arrive_and_wait();
         u64 s = 0;
         for (u32 i = 0; i < cfg.n; ++i) {
             q.pop(v);
-            s += v;
+            s += scalar(v);
         }
         t1 = clock::now();
         sync.sum.store(s, std::memory_order_release);
@@ -198,10 +225,10 @@ double once_throughput(Cfg const &cfg, Q &q) {
 
     sync.go.store(1, std::memory_order_release);
     for (u32 i = 0; i < kWarmThru; ++i)
-        q.push(0);
+        q.push(value<T>(0));
     timed.arrive_and_wait();
     for (u32 i = 0; i < cfg.n; ++i)
-        q.push(i + 1);
+        q.push(value<T>(i + 1));
     consumer.join();
 
     u64 expect = u64(cfg.n) * u64(cfg.n + 1) / 2;
@@ -248,10 +275,13 @@ Stats stats_of(std::span<double const> xs) {
     return {mean, stdev, ci95, xs.front(), xs.back()};
 }
 
-void print_throughput(char const *name, std::vector<double> &mps) {
+void print_throughput(char const *name, char const *payload, std::size_t bytes,
+                      u32 capacity, std::vector<double> &mps) {
     for (std::size_t i = 0; i < mps.size(); ++i)
-        std::println("raw metric=throughput queue={} run={} msgs_per_s={:.3f}",
-                     name, i + 1, mps[i]);
+        std::println(
+            "raw metric=throughput queue={} payload={} payload_bytes={} "
+            "capacity={} run={} msgs_per_s={:.3f}",
+            name, payload, bytes, capacity, i + 1, mps[i]);
     std::ranges::sort(mps);
     auto   st     = stats_of(mps);
     auto   mid    = mps.size() / 2;
@@ -287,11 +317,10 @@ void run_rounds(std::array<Competitor<T>, N> &competitors, u32 runs) {
     }
 }
 
-// Queues are often non-movable; hold two by value (prvalue elision).
 template <class Q>
 struct Duo {
-    Q q1{};
-    Q q2{};
+    std::unique_ptr<Q> q1 = std::make_unique<Q>();
+    std::unique_ptr<Q> q2 = std::make_unique<Q>();
 };
 
 // Nearest-rank: p in [0,100], xs sorted ascending, non-empty.
@@ -322,16 +351,17 @@ void print_tsc_overhead(double nspt) {
 template <class Q>
 void once_ping_pong(Cfg const &cfg, Duo<Q> &d, std::span<double> out_ns,
                     double nspt) {
+    using T = typename Q::value_type;
     Sync sync;
     auto peer = std::thread([&] {
         pin(cfg.cpu_c);
         sync.ready.fetch_add(1, std::memory_order_release);
         while (sync.go.load(std::memory_order_acquire) == 0)
             pause_spin();
-        u32 v = 0;
+        T v{};
         for (u32 i = 0; i < kWarmLat + cfg.n; ++i) {
-            d.q1.pop(v);
-            d.q2.push(v);
+            d.q1->pop(v);
+            d.q2->push(v);
         }
     });
 
@@ -340,15 +370,15 @@ void once_ping_pong(Cfg const &cfg, Duo<Q> &d, std::span<double> out_ns,
         pause_spin();
 
     sync.go.store(1, std::memory_order_release);
-    u32 v = 0;
+    T v{};
     for (u32 i = 0; i < kWarmLat; ++i) {
-        d.q1.push(0);
-        d.q2.pop(v);
+        d.q1->push(value<T>(0));
+        d.q2->pop(v);
     }
     for (u32 i = 0; i < cfg.n; ++i) {
         u64 t0 = tsc_start();
-        d.q1.push(i + 1);
-        d.q2.pop(v);
+        d.q1->push(value<T>(i + 1));
+        d.q2->pop(v);
         out_ns[i] = static_cast<double>(tsc_end() - t0) * nspt;
     }
     peer.join();
@@ -358,13 +388,16 @@ struct Latency {
     double p50, p90, p99, p999;
 };
 
-void print_ping_pong(char const *name, std::vector<Latency> const &runs) {
+void print_ping_pong(char const *name, char const *payload, std::size_t bytes,
+                     u32 capacity, std::vector<Latency> const &runs) {
     std::array<std::vector<double>, 4> values;
     for (std::size_t i = 0; i < runs.size(); ++i) {
         auto const &run = runs[i];
-        std::println("raw metric=latency queue={} run={} p50_ns={:.3f} "
-                     "p90_ns={:.3f} p99_ns={:.3f} p999_ns={:.3f}",
-                     name, i + 1, run.p50, run.p90, run.p99, run.p999);
+        std::println("raw metric=latency queue={} payload={} payload_bytes={} "
+                     "capacity={} run={} p50_ns={:.3f} p90_ns={:.3f} "
+                     "p99_ns={:.3f} p999_ns={:.3f}",
+                     name, payload, bytes, capacity, i + 1, run.p50, run.p90,
+                     run.p99, run.p999);
         values[0].push_back(run.p50);
         values[1].push_back(run.p90);
         values[2].push_back(run.p99);
@@ -395,7 +428,7 @@ int parse_cpu_pair(char const *s, int &a, int &b) {
 
 void usage(char const *argv0) {
     std::println(stderr,
-                 "Usage: {} [--throughput|--latency|--all] [--quick] "
+                 "Usage: {} [--throughput|--latency|--all] [--quick|--full] "
                  "[--scenario cross|smt] [--cpus P,C] [-n N] [-r RUNS]\n"
                  "  --scenario cross  different physical cores (default 0,2)\n"
                  "  --scenario smt    same-core SMT siblings (default 0,1)\n"
@@ -430,6 +463,8 @@ Cfg parse(int argc, char **argv) {
             c.do_tp = c.do_pp = true;
         } else if (a == "--quick") {
             c.quick = true;
+        } else if (a == "--full") {
+            c.quick = false;
         } else if (a == "--scenario" && i + 1 < argc) {
             std::string_view s = argv[++i];
             if (s == "cross") {
@@ -472,6 +507,89 @@ Cfg parse(int argc, char **argv) {
     return c;
 }
 
+template <class T, u32 Cap>
+void run_case(Cfg const &cfg, double nspt, char const *payload) {
+    std::println("---- payload={} bytes={} capacity={} ----", payload,
+                 sizeof(T), Cap);
+    if (cfg.do_tp) {
+        std::array competitors{
+            Competitor<double>{"qqu::spsc",
+                               {},
+                               [&](auto &xs) {
+                                   Qqu<T, Cap> q;
+                                   xs.push_back(double(cfg.n) /
+                                                once_throughput(cfg, q));
+                               }},
+            Competitor<double>{"rigtorp::SPSCQueue",
+                               {},
+                               [&](auto &xs) {
+                                   Rigtorp<T, Cap> q;
+                                   xs.push_back(double(cfg.n) /
+                                                once_throughput(cfg, q));
+                               }},
+            Competitor<double>{"atomic_queue::AtomicQueue2",
+                               {},
+                               [&](auto &xs) {
+                                   Aq<T, Cap> q;
+                                   xs.push_back(double(cfg.n) /
+                                                once_throughput(cfg, q));
+                               }},
+        };
+        run_rounds(competitors, cfg.runs);
+        for (auto &competitor : competitors)
+            print_throughput(competitor.name, payload, sizeof(T), Cap,
+                             competitor.samples);
+    }
+
+    if (cfg.do_pp) {
+        auto run = [&]<class Q>(std::vector<Latency> &runs) {
+            std::vector<double> samples(cfg.n);
+            Duo<Q>              d;
+            once_ping_pong(cfg, d, samples, nspt);
+            std::ranges::sort(samples);
+            runs.push_back({pct(samples, 50), pct(samples, 90),
+                            pct(samples, 99), pct(samples, 99.9)});
+        };
+        std::array competitors{
+            Competitor<Latency>{
+                "qqu::spsc",
+                {},
+                [&](auto &xs) { run.template operator()<Qqu<T, Cap>>(xs); }},
+            Competitor<Latency>{"rigtorp::SPSCQueue",
+                                {},
+                                [&](auto &xs) {
+                                    run.template operator()<Rigtorp<T, Cap>>(
+                                        xs);
+                                }},
+            Competitor<Latency>{
+                "atomic_queue::AtomicQueue2",
+                {},
+                [&](auto &xs) { run.template operator()<Aq<T, Cap>>(xs); }},
+        };
+        for (auto &competitor : competitors) {
+            competitor.run(competitor.samples);
+            competitor.samples.clear();
+            competitor.samples.reserve(cfg.runs);
+        }
+        run_rounds(competitors, cfg.runs);
+        for (auto &competitor : competitors)
+            print_ping_pong(competitor.name, payload, sizeof(T), Cap,
+                            competitor.samples);
+    }
+}
+
+template <class T>
+void run_payload(Cfg const &cfg, double nspt, char const *payload) {
+    if (cfg.quick) {
+        run_case<T, 1024>(cfg, nspt, payload);
+        return;
+    }
+    run_case<T, 8>(cfg, nspt, payload);
+    run_case<T, 64>(cfg, nspt, payload);
+    run_case<T, 1024>(cfg, nspt, payload);
+    run_case<T, 65536>(cfg, nspt, payload);
+}
+
 } // namespace
 
 int main(int argc, char **argv) {
@@ -484,88 +602,15 @@ int main(int argc, char **argv) {
     }
 
     char const *topo = pin_topology(cfg.cpu_p, cfg.cpu_c);
-    std::println("# suite=spsc n={} runs={} cpus={},{} [{}] thr_cap={} "
-                 "lat_cap={} ns/tsc_tick={:.4f}",
-                 cfg.n, cfg.runs, cfg.cpu_p, cfg.cpu_c, topo, kCapThru, kCapLat,
-                 nspt);
-
-    if (cfg.do_tp) {
-        std::println("---- throughput (higher is better) ----");
-        std::array competitors{
-            Competitor<double>{.name    = "qqu::spsc",
-                               .samples = {},
-                               .run =
-                                   [&](auto &xs) {
-                                       Qqu<kCapThru> q;
-                                       xs.push_back(double(cfg.n) /
-                                                    once_throughput(cfg, q));
-                                   }},
-            Competitor<double>{.name    = "rigtorp::SPSCQueue",
-                               .samples = {},
-                               .run =
-                                   [&](auto &xs) {
-                                       Rigtorp<kCapThru> q;
-                                       xs.push_back(double(cfg.n) /
-                                                    once_throughput(cfg, q));
-                                   }},
-            Competitor<double>{.name    = "atomic_queue::AtomicQueue2",
-                               .samples = {},
-                               .run =
-                                   [&](auto &xs) {
-                                       Aq<kCapThru> q;
-                                       xs.push_back(double(cfg.n) /
-                                                    once_throughput(cfg, q));
-                                   }},
-        };
-        run_rounds(competitors, cfg.runs);
-        for (auto &competitor : competitors)
-            print_throughput(competitor.name, competitor.samples);
-        std::println("");
-    }
-
-    if (cfg.do_pp) {
+    std::println("# suite=spsc n={} runs={} cpus={},{} [{}] capacities={} "
+                 "payloads=u32,u64,p16,p64 ns/tsc_tick={:.4f}",
+                 cfg.n, cfg.runs, cfg.cpu_p, cfg.cpu_c, topo,
+                 cfg.quick ? "1024" : "8,64,1024,65536", nspt);
+    if (cfg.do_pp)
         print_tsc_overhead(nspt);
-        std::println("---- latency / ping-pong (lower is better) ----");
-        auto run = [&]<class Q>(std::vector<Latency> &runs) {
-            std::vector<double> samples(cfg.n);
-            Duo<Q>              d;
-            once_ping_pong(cfg, d, samples, nspt);
-            std::ranges::sort(samples);
-            runs.push_back({pct(samples, 50), pct(samples, 90),
-                            pct(samples, 99), pct(samples, 99.9)});
-        };
-        std::array competitors{
-            Competitor<Latency>{.name    = "qqu::spsc",
-                                .samples = {},
-                                .run =
-                                    [&](auto &xs) {
-                                        run.template operator()<Qqu<kCapLat>>(
-                                            xs);
-                                    }},
-            Competitor<Latency>{
-                .name    = "rigtorp::SPSCQueue",
-                .samples = {},
-                .run =
-                    [&](auto &xs) {
-                        run.template operator()<Rigtorp<kCapLat>>(xs);
-                    }},
-            Competitor<Latency>{.name    = "atomic_queue::AtomicQueue2",
-                                .samples = {},
-                                .run =
-                                    [&](auto &xs) {
-                                        run.template operator()<Aq<kCapLat>>(
-                                            xs);
-                                    }},
-        };
-        for (auto &competitor : competitors) {
-            competitor.run(competitor.samples);
-            competitor.samples.clear();
-            competitor.samples.reserve(cfg.runs);
-        }
-        run_rounds(competitors, cfg.runs);
-        for (auto &competitor : competitors)
-            print_ping_pong(competitor.name, competitor.samples);
-        std::println("");
-    }
+    run_payload<u32>(cfg, nspt, "u32");
+    run_payload<u64>(cfg, nspt, "u64");
+    run_payload<Payload16>(cfg, nspt, "p16");
+    run_payload<Payload64>(cfg, nspt, "p64");
     return 0;
 }
