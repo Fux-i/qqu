@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+results_dir=${RESULTS_DIR:-"$root/results"}
+txt_dir="$results_dir/txt"
+svg_dir="$results_dir/svg"
+files=("$txt_dir"/spsc.*.txt)
+
+if [[ ! -e ${files[0]} ]]; then
+  echo "plot: no SPSC results in $txt_dir" >&2
+  exit 1
+fi
+
+latest=${files[${#files[@]}-1]}
+echo "==> $latest"
+uv run --project "$root/scripts/py" "$root/scripts/py/main.py" \
+  --output-dir "$svg_dir" "$latest"
