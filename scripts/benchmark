@@ -145,7 +145,7 @@ cmake --build "$build" --target "${targets[@]}" -j"$jobs"
 
 txt_dir="$results_dir/txt"
 mkdir -p "$txt_dir"
-stamp=$(date -u +%Y%m%dT%H%M%S)
+stamp=$(date +%Y%m%dT%H%M%S)
 
 metadata() {
   local target=$1
