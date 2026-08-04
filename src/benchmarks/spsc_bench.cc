@@ -1,4 +1,3 @@
-#include "common.h"
 #include "spsc.h"
 
 #include <atomic_queue/atomic_queue.h>
@@ -44,7 +43,7 @@ using Payload16 = Payload<16>;
 using Payload64 = Payload<64>;
 
 constexpr u32 kDefaultN    = 1'000'000;
-constexpr u32 kDefaultRuns = 10;
+constexpr u32 kDefaultRuns = 15;
 // Steady-state warm on the same Q before the timed window.
 constexpr u32 kWarmThru    = 100'000;
 constexpr u32 kWarmLat     = 10'000;
@@ -113,7 +112,7 @@ double ns_per_tsc_tick() {
     auto t0 = clock::now();
     u64  c0 = tsc_start();
     while (clock::now() - t0 < 50ms)
-        pause_spin();
+        ;
     u64    c1 = tsc_end();
     auto   t1 = clock::now();
     double ns = std::chrono::duration<double, std::nano>(t1 - t0).count();
@@ -183,7 +182,6 @@ struct Rigtorp {
                 q.pop();
                 return;
             }
-            pause_spin();
         }
     }
 };
@@ -205,7 +203,7 @@ double once_throughput(Cfg const &cfg, Q &q) {
         pin(cfg.cpu_c);
         sync.ready.fetch_add(1, std::memory_order_release);
         while (sync.go.load(std::memory_order_acquire) == 0)
-            pause_spin();
+            ;
         T v{};
         for (u32 i = 0; i < kWarmThru; ++i)
             q.pop(v);
@@ -221,7 +219,7 @@ double once_throughput(Cfg const &cfg, Q &q) {
 
     pin(cfg.cpu_p);
     while (sync.ready.load(std::memory_order_acquire) < 1)
-        pause_spin();
+        ;
 
     sync.go.store(1, std::memory_order_release);
     for (u32 i = 0; i < kWarmThru; ++i)
@@ -357,7 +355,7 @@ void once_ping_pong(Cfg const &cfg, Duo<Q> &d, std::span<double> out_ns,
         pin(cfg.cpu_c);
         sync.ready.fetch_add(1, std::memory_order_release);
         while (sync.go.load(std::memory_order_acquire) == 0)
-            pause_spin();
+            ;
         T v{};
         for (u32 i = 0; i < kWarmLat + cfg.n; ++i) {
             d.q1->pop(v);
@@ -367,7 +365,7 @@ void once_ping_pong(Cfg const &cfg, Duo<Q> &d, std::span<double> out_ns,
 
     pin(cfg.cpu_p);
     while (sync.ready.load(std::memory_order_acquire) < 1)
-        pause_spin();
+        ;
 
     sync.go.store(1, std::memory_order_release);
     T v{};
