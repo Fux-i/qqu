@@ -63,10 +63,10 @@ def main():
     args = parser.parse_args()
     output_dir = args.output_dir or args.results[-1].parent
     output_dir.mkdir(parents=True, exist_ok=True)
-    match = re.fullmatch(r"spsc\.([^.]+)\.txt", args.results[-1].name)
+    match = re.fullmatch(r"(\d{6})\.([^.]+)\.txt", args.results[-1].name)
     if not match:
-        parser.error("result filename must be spsc.{time}.txt")
-    prefix = f"spsc.{match.group(1)}"
+        parser.error("result filename must be {time}.{comment}.txt")
+    prefix = f"{match.group(1)}.{match.group(2)}"
     rows = list(records(args.results))
     if not rows:
         parser.error("no raw benchmark records found")

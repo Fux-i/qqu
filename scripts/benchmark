@@ -6,6 +6,7 @@ jobs=${JOBS:-$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)}
 suite=""
 full=0
 cpus="${QQU_CPUS:-}"
+comment="${QQU_COMMENT:-}"
 build=${BUILD_DIR:-"$root/build"}
 bench_args=()
 results_dir=${RESULTS_DIR:-"$root/results"}
@@ -32,6 +33,7 @@ Options:
   --cpus P,C      pin producer,consumer (also used with taskset if present)
   --scenario S    cross (default, different cores) or smt (same-core SMT)
   --smt           alias for --scenario smt (cpus 0,1 unless --cpus set)
+  -m, --comment C short result comment (default: scenario)
   -h, --help      show this help
 
 Env:
@@ -40,6 +42,7 @@ Env:
   JOBS          parallel build jobs
   CXX           C++ compiler
   QQU_N QQU_RUNS QQU_CPUS   forwarded to the bench binary
+  QQU_COMMENT                result comment
 
 Examples:
   ./scripts/benchmark
@@ -90,6 +93,15 @@ while [[ $# -gt 0 ]]; do
       cpus=${1#--cpus=}
       shift
       ;;
+    -m | --comment)
+      [[ $# -ge 2 ]] || { echo "benchmark: --comment needs C" >&2; exit 1; }
+      comment=$2
+      shift 2
+      ;;
+    --comment=*)
+      comment=${1#--comment=}
+      shift
+      ;;
     --)
       shift
       bench_args+=("$@")
@@ -122,6 +134,7 @@ if [[ $scenario == cross && -z $cpus ]]; then
 fi
 
 suite=${suite:-all}
+comment=${comment:-${scenario:-cross}}
 
 case "$suite" in
   spsc) targets=(qqu_bench_spsc) ;;
@@ -144,8 +157,8 @@ cmake "${cmake_args[@]}"
 cmake --build "$build" --target "${targets[@]}" -j"$jobs"
 
 txt_dir="$results_dir/txt"
-mkdir -p "$txt_dir"
-stamp=$(date +%Y%m%dT%H%M%S)
+date_stamp=$(date +%Y%m%d)
+time_stamp=$(date +%H%M%S)
 
 metadata() {
   local target=$1
@@ -208,7 +221,10 @@ metadata() {
 
 status=0
 for t in "${targets[@]}"; do
-  out="$txt_dir/${t#qqu_bench_}.$stamp.txt"
+  type=${t#qqu_bench_}
+  out_dir="$txt_dir/$date_stamp.$type"
+  mkdir -p "$out_dir"
+  out="$out_dir/$time_stamp.$comment.txt"
   echo "==> $t  (build=$build) -> $out"
 
   run=("$build/$t")
