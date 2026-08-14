@@ -582,7 +582,6 @@ void run_payload(Cfg const &cfg, double nspt, char const *payload) {
         run_case<T, 1024>(cfg, nspt, payload);
         return;
     }
-    run_case<T, 8>(cfg, nspt, payload);
     run_case<T, 64>(cfg, nspt, payload);
     run_case<T, 1024>(cfg, nspt, payload);
     run_case<T, 65536>(cfg, nspt, payload);
@@ -603,7 +602,7 @@ int main(int argc, char **argv) {
     std::println("# suite=spsc n={} runs={} cpus={},{} [{}] capacities={} "
                  "payloads=u32,u64,p16,p64 ns/tsc_tick={:.4f}",
                  cfg.n, cfg.runs, cfg.cpu_p, cfg.cpu_c, topo,
-                 cfg.quick ? "1024" : "8,64,1024,65536", nspt);
+                 cfg.quick ? "1024" : "64,1024,65536", nspt);
     if (cfg.do_pp)
         print_tsc_overhead(nspt);
     run_payload<u32>(cfg, nspt, "u32");

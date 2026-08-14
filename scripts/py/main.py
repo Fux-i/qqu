@@ -31,7 +31,7 @@ def plot(rows, metric, field, title, ylabel, output):
     if not values:
         return
     capacities = sorted({capacity for _, capacity, _ in values})
-    capacity_labels = {8: "8", 64: "64", 1024: "1K", 65536: "64K"}
+    capacity_labels = {64: "64", 1024: "1K", 65536: "64K"}
 
     fig, axes = plt.subplots(2, 2, figsize=(11, 7), sharex=True, constrained_layout=True)
     fig.suptitle(title, fontsize=16)
