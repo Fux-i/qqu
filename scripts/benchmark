@@ -32,9 +32,10 @@ Options:
   --full          all capacities with the full N and run count
   --cpus P,C      pin producer,consumer (also used with taskset if present)
   --scenario S    cross (default, different cores) or smt (same-core SMT)
-  --smt           alias for --scenario smt (cpus 0,1 unless --cpus set)
+  --smt           alias for --scenario smt (cpus 6,7 unless --cpus set)
   -m, --comment C short result comment (default: scenario)
   -h, --help      show this help
+  (implicit)      sets performance profile and disables turbo before runs
 
 Env:
   BUILD_DIR     build directory (default: <repo>/build)
@@ -127,10 +128,10 @@ if [[ -n $scenario && $scenario != cross && $scenario != smt ]]; then
   exit 1
 fi
 if [[ $scenario == smt && -z $cpus ]]; then
-  cpus=0,1
+  cpus=6,7
 fi
 if [[ $scenario == cross && -z $cpus ]]; then
-  cpus=0,2
+  cpus=6,8
 fi
 
 suite=${suite:-all}
@@ -165,7 +166,7 @@ metadata() {
   local compiler cpu_pair cpu cache_dir
   compiler=$(sed -n 's/^CMAKE_CXX_COMPILER:FILEPATH=//p' "$build/CMakeCache.txt")
   compiler=${compiler:-${CXX:-c++}}
-  cpu_pair=${cpus:-0,2}
+  cpu_pair=${cpus:-6,8}
 
   printf '# cpu_model=%s\n' "$(LC_ALL=C lscpu | sed -n 's/^Model name:[[:space:]]*//p')"
   LC_ALL=C lscpu -e=CPU,CORE,SOCKET,NODE | while IFS= read -r line; do
@@ -218,6 +219,22 @@ metadata() {
     printf '# turbo interface=unavailable value=unavailable\n'
   fi
 }
+
+set_quiet() {
+  if command -v powerprofilesctl >/dev/null 2>&1; then
+    powerprofilesctl set performance 2>/dev/null \
+      || echo "benchmark: warning: powerprofilesctl set performance failed" >&2
+  fi
+  if [[ -w /sys/devices/system/cpu/cpufreq/boost ]]; then
+    echo 0 > /sys/devices/system/cpu/cpufreq/boost
+  elif sudo sh -c 'echo 0 > /sys/devices/system/cpu/cpufreq/boost'; then
+    :
+  else
+    echo "benchmark: warning: cannot disable turbo (needs root)" >&2
+  fi
+}
+
+set_quiet
 
 status=0
 for t in "${targets[@]}"; do
