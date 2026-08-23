@@ -52,15 +52,15 @@ constexpr u32 kTscSamples  = 100'001;
 struct Cfg {
     u32  n     = kDefaultN;
     u32  runs  = kDefaultRuns;
-    int  cpu_p = 0;
-    int  cpu_c = 2;
+    int  cpu_p = 6;
+    int  cpu_c = 8;
     bool do_tp = true;
     bool do_pp = true;
     bool quick = true;
 };
 
-// cross-core (default): distinct physical cores, e.g. 0,2
-// same-core: sibling threads on one core, e.g. 0,1
+// cross-core (default): distinct physical cores, e.g. 6,8
+// same-core: sibling threads on one core, e.g. 6,7
 [[nodiscard]]
 char const *pin_topology(int cpu_p, int cpu_c) {
     auto core_id = [](int cpu) -> int {
@@ -428,8 +428,8 @@ void usage(char const *argv0) {
     std::println(stderr,
                  "Usage: {} [--throughput|--latency|--all] [--quick|--full] "
                  "[--scenario cross|smt] [--cpus P,C] [-n N] [-r RUNS]\n"
-                 "  --scenario cross  different physical cores (default 0,2)\n"
-                 "  --scenario smt    same-core SMT siblings (default 0,1)\n"
+                 "  --scenario cross  different physical cores (default 6,8)\n"
+                 "  --scenario smt    same-core SMT siblings (default 6,7)\n"
                  "Env: QQU_N QQU_RUNS QQU_CPUS",
                  argv0);
 }
@@ -467,13 +467,13 @@ Cfg parse(int argc, char **argv) {
             std::string_view s = argv[++i];
             if (s == "cross") {
                 if (!cpus_set) {
-                    c.cpu_p = 0;
-                    c.cpu_c = 2;
+                    c.cpu_p = 6;
+                    c.cpu_c = 8;
                 }
             } else if (s == "smt") {
                 if (!cpus_set) {
-                    c.cpu_p = 0;
-                    c.cpu_c = 1;
+                    c.cpu_p = 6;
+                    c.cpu_c = 7;
                 }
             } else {
                 usage(argv[0]);
