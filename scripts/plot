@@ -3,12 +3,12 @@ set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 results_dir=${RESULTS_DIR:-"$root/results"}
-txt_dir="$results_dir/txt"
+raw_dir="$results_dir/raw"
 svg_dir="$results_dir/svg"
-files=("$txt_dir"/*.spsc/*.txt)
+files=("$raw_dir"/*.spsc/*.bench.csv)
 
 if [[ ! -e ${files[0]} ]]; then
-  echo "plot: no SPSC results in $txt_dir" >&2
+  echo "plot: no SPSC results in $raw_dir" >&2
   exit 1
 fi
 

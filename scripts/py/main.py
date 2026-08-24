@@ -1,4 +1,5 @@
 import argparse
+import csv
 import re
 from collections import defaultdict
 from pathlib import Path
@@ -15,10 +16,8 @@ COLORS = ["#0072B2", "#D55E00", "#009E73"]
 
 def records(paths):
     for path in paths:
-        for line in path.read_text().splitlines():
-            if not line.startswith("raw "):
-                continue
-            yield dict(re.findall(r"(\w+)=([^ ]+)", line))
+        with path.open(newline="") as f:
+            yield from csv.DictReader(f)
 
 
 def plot(rows, metric, field, title, ylabel, output):
@@ -63,16 +62,16 @@ def main():
     args = parser.parse_args()
     output_dir = args.output_dir or args.results[-1].parent
     output_dir.mkdir(parents=True, exist_ok=True)
-    match = re.fullmatch(r"(\d{6})\.([^.]+)\.txt", args.results[-1].name)
+    match = re.fullmatch(r"(\d{6})\.([^.]+)\.bench\.csv", args.results[-1].name)
     if not match:
-        parser.error("result filename must be {time}.{comment}.txt")
+        parser.error("result filename must be {time}.{comment}.bench.csv")
     prefix = f"{match.group(1)}.{match.group(2)}"
     rows = list(records(args.results))
     if not rows:
-        parser.error("no raw benchmark records found")
+        parser.error("no benchmark records found")
     required = {"metric", "queue", "payload", "capacity"}
     if any(not required <= row.keys() for row in rows):
-        parser.error("result uses the legacy format; run the benchmark again")
+        parser.error("result is missing required columns")
     plot(
         rows,
         "throughput",

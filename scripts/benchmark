@@ -1,23 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-root=$(cd "$(dirname "$0")/.." && pwd)
-jobs=${JOBS:-$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)}
+source "$(dirname "$0")/lib/common.sh"
+source "$(dirname "$0")/lib/metadata.sh"
+source "$(dirname "$0")/lib/perf.sh"
+source "$(dirname "$0")/lib/results.sh"
+
+qqu_prefer_cxx
+
 suite=""
 full=0
+do_perf=0
 cpus="${QQU_CPUS:-}"
 comment="${QQU_COMMENT:-}"
-build=${BUILD_DIR:-"$root/build"}
 bench_args=()
-results_dir=${RESULTS_DIR:-"$root/results"}
-
-if [[ -z ${CXX+x} ]]; then
-  if command -v clang++ >/dev/null 2>&1; then
-    export CXX=clang++
-  elif command -v g++ >/dev/null 2>&1; then
-    export CXX=g++
-  fi
-fi
 
 usage() {
   cat <<'USAGE'
@@ -33,6 +29,7 @@ Options:
   --cpus P,C      pin producer,consumer (also used with taskset if present)
   --scenario S    cross (default, different cores) or smt (same-core SMT)
   --smt           alias for --scenario smt (cpus 6,7 unless --cpus set)
+  --perf          perf stat per queue (cache/branch/IPC); separate result file
   -m, --comment C short result comment (default: scenario)
   -h, --help      show this help
   (implicit)      sets performance profile and disables turbo before runs
@@ -51,67 +48,34 @@ Examples:
   ./scripts/benchmark spsc --full
   ./scripts/benchmark spsc --cpus 0,2
   ./scripts/benchmark spsc --smt
+  ./scripts/benchmark spsc --perf
+  ./scripts/benchmark spsc --perf --full
   ./scripts/benchmark spsc --scenario smt --cpus 0,1
   ./scripts/benchmark spsc -- --latency -n 500000
   ./scripts/plot
 USAGE
 }
 
+need_arg() {
+  [[ $# -ge 2 ]] || { echo "benchmark: $1 needs a value" >&2; exit 1; }
+}
+
 scenario=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -h | --help)
-      usage
-      exit 0
-      ;;
-    --quick)
-      full=0
-      shift
-      ;;
-    --full)
-      full=1
-      shift
-      ;;
-    --smt)
-      scenario=smt
-      shift
-      ;;
-    --scenario)
-      [[ $# -ge 2 ]] || { echo "benchmark: --scenario needs cross|smt" >&2; exit 1; }
-      scenario=$2
-      shift 2
-      ;;
-    --scenario=*)
-      scenario=${1#--scenario=}
-      shift
-      ;;
-    --cpus)
-      [[ $# -ge 2 ]] || { echo "benchmark: --cpus needs P,C" >&2; exit 1; }
-      cpus=$2
-      shift 2
-      ;;
-    --cpus=*)
-      cpus=${1#--cpus=}
-      shift
-      ;;
-    -m | --comment)
-      [[ $# -ge 2 ]] || { echo "benchmark: --comment needs C" >&2; exit 1; }
-      comment=$2
-      shift 2
-      ;;
-    --comment=*)
-      comment=${1#--comment=}
-      shift
-      ;;
-    --)
-      shift
-      bench_args+=("$@")
-      break
-      ;;
-    -*)
-      bench_args+=("$1")
-      shift
-      ;;
+    -h | --help) usage; exit 0 ;;
+    --quick) full=0; shift ;;
+    --full) full=1; shift ;;
+    --smt) scenario=smt; shift ;;
+    --perf) do_perf=1; shift ;;
+    --scenario) need_arg "$@"; scenario=$2; shift 2 ;;
+    --scenario=*) scenario=${1#--scenario=}; shift ;;
+    --cpus) need_arg "$@"; cpus=$2; shift 2 ;;
+    --cpus=*) cpus=${1#--cpus=}; shift ;;
+    -m | --comment) need_arg "$@"; comment=$2; shift 2 ;;
+    --comment=*) comment=${1#--comment=}; shift ;;
+    --) shift; bench_args+=("$@"); break ;;
+    -*) bench_args+=("$1"); shift ;;
     *)
       if [[ -z $suite ]]; then
         suite=$1
@@ -127,19 +91,14 @@ if [[ -n $scenario && $scenario != cross && $scenario != smt ]]; then
   echo "benchmark: --scenario must be cross or smt" >&2
   exit 1
 fi
-if [[ $scenario == smt && -z $cpus ]]; then
-  cpus=6,7
-fi
-if [[ $scenario == cross && -z $cpus ]]; then
-  cpus=6,8
-fi
+[[ $scenario == smt && -z $cpus ]] && cpus=6,7
+[[ $scenario == cross && -z $cpus ]] && cpus=6,8
 
 suite=${suite:-all}
 comment=${comment:-${scenario:-cross}}
 
 case "$suite" in
-  spsc) targets=(qqu_bench_spsc) ;;
-  all)  targets=(qqu_bench_spsc) ;;
+  spsc | all) targets=(qqu_bench_spsc) ;;
   *)
     echo "unknown suite: $suite" >&2
     usage >&2
@@ -147,102 +106,34 @@ case "$suite" in
     ;;
 esac
 
-if [[ -f $build/CMakeCache.txt ]] && grep -q 'QQU_SANITIZER:[^=]*=\(asan\|tsan\|ubsan\)' "$build/CMakeCache.txt" 2>/dev/null; then
-  echo "benchmark: refusing sanitizer build dir: $build (use BUILD_DIR=build)" >&2
-  exit 1
-fi
+qqu_refuse_sanitizer
+qqu_cmake_release "${targets[@]}"
+qqu_set_quiet
 
-cmake_args=(-S "$root" -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release)
-cmake "${cmake_args[@]}"
-
-cmake --build "$build" --target "${targets[@]}" -j"$jobs"
-
-txt_dir="$results_dir/txt"
+raw_dir="$results_dir/raw"
 date_stamp=$(date +%Y%m%d)
 time_stamp=$(date +%H%M%S)
-
-metadata() {
-  local target=$1
-  local compiler cpu_pair cpu cache_dir
-  compiler=$(sed -n 's/^CMAKE_CXX_COMPILER:FILEPATH=//p' "$build/CMakeCache.txt")
-  compiler=${compiler:-${CXX:-c++}}
-  cpu_pair=${cpus:-6,8}
-
-  printf '# cpu_model=%s\n' "$(LC_ALL=C lscpu | sed -n 's/^Model name:[[:space:]]*//p')"
-  LC_ALL=C lscpu -e=CPU,CORE,SOCKET,NODE | while IFS= read -r line; do
-    printf '# cpu_topology=%s\n' "$line"
-  done
-  LC_ALL=C lscpu -C | while IFS= read -r line; do
-    printf '# cache=%s\n' "$line"
-  done
-  printf '# kernel=%s\n' "$(uname -srvm)"
-  printf '# compiler=%s\n' "$compiler"
-  "$compiler" --version | while IFS= read -r line; do
-    printf '# compiler_version=%s\n' "$line"
-  done
-
-  for dep in spscqueue atomic_queue; do
-    local dep_dir="$root/deps/${dep}-src"
-    if [[ -d $dep_dir/.git ]]; then
-      printf '# dependency=%s version=%s commit=%s\n' "$dep" \
-        "$(git -C "$dep_dir" describe --tags --always --dirty)" \
-        "$(git -C "$dep_dir" rev-parse HEAD)"
-    else
-      printf '# dependency=%s version=unavailable commit=unavailable\n' "$dep"
-    fi
-  done
-
-  printf '# compile_command=%s\n' "$(ninja -C "$build" -t commands "$target" | sed -n '1p')"
-  IFS=, read -ra cpu_list <<< "$cpu_pair"
-  for cpu in "${cpu_list[@]}"; do
-    for cache_dir in /sys/devices/system/cpu/cpu"$cpu"/cache/index*; do
-      [[ -d $cache_dir ]] || continue
-      printf '# cache_cpu=%s index=%s level=%s type=%s size=%s line_size=%s ways=%s sets=%s shared_cpus=%s\n' \
-        "$cpu" "${cache_dir##*/index}" "$(<"$cache_dir/level")" "$(<"$cache_dir/type")" \
-        "$(<"$cache_dir/size")" "$(<"$cache_dir/coherency_line_size")" \
-        "$(<"$cache_dir/ways_of_associativity")" "$(<"$cache_dir/number_of_sets")" \
-        "$(<"$cache_dir/shared_cpu_list")"
-    done
-    local governor="/sys/devices/system/cpu/cpu${cpu}/cpufreq/scaling_governor"
-    if [[ $cpu =~ ^[0-9]+$ && -r $governor ]]; then
-      printf '# cpu_governor cpu=%s value=%s\n' "$cpu" "$(<"$governor")"
-    else
-      printf '# cpu_governor cpu=%s value=unavailable\n' "$cpu"
-    fi
-  done
-
-  if [[ -r /sys/devices/system/cpu/cpufreq/boost ]]; then
-    printf '# turbo interface=cpufreq/boost value=%s\n' "$(</sys/devices/system/cpu/cpufreq/boost)"
-  elif [[ -r /sys/devices/system/cpu/intel_pstate/no_turbo ]]; then
-    printf '# turbo interface=intel_pstate/no_turbo value=%s\n' "$(</sys/devices/system/cpu/intel_pstate/no_turbo)"
-  else
-    printf '# turbo interface=unavailable value=unavailable\n'
-  fi
-}
-
-set_quiet() {
-  if command -v powerprofilesctl >/dev/null 2>&1; then
-    powerprofilesctl set performance 2>/dev/null \
-      || echo "benchmark: warning: powerprofilesctl set performance failed" >&2
-  fi
-  if [[ -w /sys/devices/system/cpu/cpufreq/boost ]]; then
-    echo 0 > /sys/devices/system/cpu/cpufreq/boost
-  elif sudo sh -c 'echo 0 > /sys/devices/system/cpu/cpufreq/boost'; then
-    :
-  else
-    echo "benchmark: warning: cannot disable turbo (needs root)" >&2
-  fi
-}
-
-set_quiet
 
 status=0
 for t in "${targets[@]}"; do
   type=${t#qqu_bench_}
-  out_dir="$txt_dir/$date_stamp.$type"
+  out_dir="$raw_dir/$date_stamp.$type"
   mkdir -p "$out_dir"
-  out="$out_dir/$time_stamp.$comment.txt"
-  echo "==> $t  (build=$build) -> $out"
+  stem="$out_dir/$time_stamp.$comment"
+  meta="$stem.meta.txt"
+  echo "==> $t  (build=$build) -> $stem"
+
+  if ! qqu_metadata "$t" >"$meta"; then
+    status=1
+    continue
+  fi
+
+  if ((do_perf)); then
+    if ! qqu_run_perf "$build/$t" "$stem.perf.csv"; then
+      status=1
+    fi
+    continue
+  fi
 
   run=("$build/$t")
   ((full)) && run+=(--full)
@@ -250,14 +141,8 @@ for t in "${targets[@]}"; do
   [[ -n $cpus ]] && run+=(--cpus "$cpus")
   run+=("${bench_args[@]+"${bench_args[@]}"}")
 
-  if [[ -n $cpus ]] && command -v taskset >/dev/null 2>&1; then
-    if ! { metadata "$t"; taskset -c "$cpus" "${run[@]}"; } > "$out"; then
-      status=1
-    fi
-  else
-    if ! { metadata "$t"; "${run[@]}"; } > "$out"; then
-      status=1
-    fi
+  if ! qqu_with_pin "${run[@]}" 2>"$stem.log" | qqu_bench_to_csv >"$stem.bench.csv"; then
+    status=1
   fi
 done
 exit "$status"

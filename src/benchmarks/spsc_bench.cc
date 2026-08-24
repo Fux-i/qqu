@@ -57,7 +57,26 @@ struct Cfg {
     bool do_tp = true;
     bool do_pp = true;
     bool quick = true;
+    u32  cap   = 0;
+
+    char const *only    = nullptr;
+    char const *payload = nullptr;
 };
+
+bool want_queue(char const *only, char const *name) {
+    if (!only || !*only)
+        return true;
+    std::string_view o = only, n = name;
+    if (o == n)
+        return true;
+    if (o == "qqu" && n.starts_with("qqu"))
+        return true;
+    if (o == "rigtorp" && n.starts_with("rigtorp"))
+        return true;
+    if ((o == "aq" || o == "atomic_queue") && n.starts_with("atomic_queue"))
+        return true;
+    return false;
+}
 
 // cross-core (default): distinct physical cores, e.g. 6,8
 // same-core: sibling threads on one core, e.g. 6,7
@@ -304,14 +323,16 @@ struct Competitor {
 };
 
 template <class T, std::size_t N>
-void run_rounds(std::array<Competitor<T>, N> &competitors, u32 runs) {
+void run_rounds(std::array<Competitor<T>, N> &competitors, u32 runs,
+                char const *only) {
     std::array<std::size_t, N> order{};
     std::ranges::iota(order, std::size_t{0});
     std::mt19937 rng(std::random_device{}());
     for (u32 round = 0; round < runs; ++round) {
         std::ranges::shuffle(order, rng);
         for (auto i : order)
-            competitors[i].run(competitors[i].samples);
+            if (want_queue(only, competitors[i].name))
+                competitors[i].run(competitors[i].samples);
     }
 }
 
@@ -427,9 +448,13 @@ int parse_cpu_pair(char const *s, int &a, int &b) {
 void usage(char const *argv0) {
     std::println(stderr,
                  "Usage: {} [--throughput|--latency|--all] [--quick|--full] "
-                 "[--scenario cross|smt] [--cpus P,C] [-n N] [-r RUNS]\n"
+                 "[--scenario cross|smt] [--cpus P,C] [--only Q] "
+                 "[--payload P] [--capacity N] [-n N] [-r RUNS]\n"
                  "  --scenario cross  different physical cores (default 6,8)\n"
                  "  --scenario smt    same-core SMT siblings (default 6,7)\n"
+                 "  --only Q          qqu|rigtorp|aq\n"
+                 "  --payload P       u32|u64|p16|p64\n"
+                 "  --capacity N      64|1024|65536\n"
                  "Env: QQU_N QQU_RUNS QQU_CPUS",
                  argv0);
 }
@@ -485,6 +510,29 @@ Cfg parse(int argc, char **argv) {
                 std::exit(2);
             }
             cpus_set = true;
+        } else if (a == "--only" && i + 1 < argc) {
+            c.only             = argv[++i];
+            std::string_view o = c.only;
+            if (o != "qqu" && o != "rigtorp" && o != "aq" &&
+                o != "atomic_queue" && o != "qqu::spsc" &&
+                o != "rigtorp::SPSCQueue" &&
+                o != "atomic_queue::AtomicQueue2") {
+                usage(argv[0]);
+                std::exit(2);
+            }
+        } else if (a == "--payload" && i + 1 < argc) {
+            c.payload          = argv[++i];
+            std::string_view p = c.payload;
+            if (p != "u32" && p != "u64" && p != "p16" && p != "p64") {
+                usage(argv[0]);
+                std::exit(2);
+            }
+        } else if (a == "--capacity" && i + 1 < argc) {
+            c.cap = static_cast<u32>(std::strtoul(argv[++i], nullptr, 10));
+            if (c.cap != 64 && c.cap != 1024 && c.cap != 65536) {
+                usage(argv[0]);
+                std::exit(2);
+            }
         } else if (a == "-n" && i + 1 < argc) {
             c.n = static_cast<u32>(std::strtoul(argv[++i], nullptr, 10));
         } else if (a == "-r" && i + 1 < argc) {
@@ -533,10 +581,11 @@ void run_case(Cfg const &cfg, double nspt, char const *payload) {
                                                 once_throughput(cfg, q));
                                }},
         };
-        run_rounds(competitors, cfg.runs);
+        run_rounds(competitors, cfg.runs, cfg.only);
         for (auto &competitor : competitors)
-            print_throughput(competitor.name, payload, sizeof(T), Cap,
-                             competitor.samples);
+            if (!competitor.samples.empty())
+                print_throughput(competitor.name, payload, sizeof(T), Cap,
+                                 competitor.samples);
     }
 
     if (cfg.do_pp) {
@@ -565,26 +614,35 @@ void run_case(Cfg const &cfg, double nspt, char const *payload) {
                 [&](auto &xs) { run.template operator()<Aq<T, Cap>>(xs); }},
         };
         for (auto &competitor : competitors) {
+            if (!want_queue(cfg.only, competitor.name))
+                continue;
             competitor.run(competitor.samples);
             competitor.samples.clear();
             competitor.samples.reserve(cfg.runs);
         }
-        run_rounds(competitors, cfg.runs);
+        run_rounds(competitors, cfg.runs, cfg.only);
         for (auto &competitor : competitors)
-            print_ping_pong(competitor.name, payload, sizeof(T), Cap,
-                            competitor.samples);
+            if (!competitor.samples.empty())
+                print_ping_pong(competitor.name, payload, sizeof(T), Cap,
+                                competitor.samples);
     }
 }
 
 template <class T>
 void run_payload(Cfg const &cfg, double nspt, char const *payload) {
-    if (cfg.quick) {
+    if (cfg.cap == 64)
+        run_case<T, 64>(cfg, nspt, payload);
+    else if (cfg.cap == 1024)
         run_case<T, 1024>(cfg, nspt, payload);
-        return;
+    else if (cfg.cap == 65536)
+        run_case<T, 65536>(cfg, nspt, payload);
+    else if (cfg.quick)
+        run_case<T, 1024>(cfg, nspt, payload);
+    else {
+        run_case<T, 64>(cfg, nspt, payload);
+        run_case<T, 1024>(cfg, nspt, payload);
+        run_case<T, 65536>(cfg, nspt, payload);
     }
-    run_case<T, 64>(cfg, nspt, payload);
-    run_case<T, 1024>(cfg, nspt, payload);
-    run_case<T, 65536>(cfg, nspt, payload);
 }
 
 } // namespace
@@ -599,15 +657,25 @@ int main(int argc, char **argv) {
     }
 
     char const *topo = pin_topology(cfg.cpu_p, cfg.cpu_c);
+    char const *caps = cfg.cap     ? (cfg.cap == 64     ? "64"
+                                      : cfg.cap == 1024 ? "1024"
+                                                        : "65536")
+                       : cfg.quick ? "1024"
+                                   : "64,1024,65536";
     std::println("# suite=spsc n={} runs={} cpus={},{} [{}] capacities={} "
-                 "payloads=u32,u64,p16,p64 ns/tsc_tick={:.4f}",
-                 cfg.n, cfg.runs, cfg.cpu_p, cfg.cpu_c, topo,
-                 cfg.quick ? "1024" : "64,1024,65536", nspt);
+                 "payloads={} only={} ns/tsc_tick={:.4f}",
+                 cfg.n, cfg.runs, cfg.cpu_p, cfg.cpu_c, topo, caps,
+                 cfg.payload ? cfg.payload : "u32,u64,p16,p64",
+                 cfg.only ? cfg.only : "all", nspt);
     if (cfg.do_pp)
         print_tsc_overhead(nspt);
-    run_payload<u32>(cfg, nspt, "u32");
-    run_payload<u64>(cfg, nspt, "u64");
-    run_payload<Payload16>(cfg, nspt, "p16");
-    run_payload<Payload64>(cfg, nspt, "p64");
+    if (!cfg.payload || std::string_view(cfg.payload) == "u32")
+        run_payload<u32>(cfg, nspt, "u32");
+    if (!cfg.payload || std::string_view(cfg.payload) == "u64")
+        run_payload<u64>(cfg, nspt, "u64");
+    if (!cfg.payload || std::string_view(cfg.payload) == "p16")
+        run_payload<Payload16>(cfg, nspt, "p16");
+    if (!cfg.payload || std::string_view(cfg.payload) == "p64")
+        run_payload<Payload64>(cfg, nspt, "p64");
     return 0;
 }
