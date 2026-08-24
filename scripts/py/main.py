@@ -8,7 +8,6 @@ from statistics import mean
 import matplotlib.pyplot as plt
 
 
-QUEUES = ["qqu::spsc", "rigtorp::SPSCQueue", "atomic_queue::AtomicQueue2"]
 PAYLOADS = ["u32", "u64", "p16", "p64"]
 LABELS = {"u32": "uint32_t", "u64": "uint64_t", "p16": "16-byte", "p64": "64-byte"}
 COLORS = ["#0072B2", "#D55E00", "#009E73"]
@@ -30,17 +29,23 @@ def plot(rows, metric, field, title, ylabel, output):
     if not values:
         return
     capacities = sorted({capacity for _, capacity, _ in values})
+    implementations = sorted({implementation for _, _, implementation in values})
     capacity_labels = {64: "64", 1024: "1K", 65536: "64K"}
 
     fig, axes = plt.subplots(2, 2, figsize=(11, 7), sharex=True, constrained_layout=True)
     fig.suptitle(title, fontsize=16)
     for payload, ax in zip(PAYLOADS, axes.flat):
         positions = range(len(capacities))
-        width = 0.24
-        for i, (queue, color) in enumerate(zip(QUEUES, COLORS)):
-            x = [position + (i - 1) * width for position in positions]
-            y = [mean(values[payload, capacity, queue]) for capacity in capacities]
-            ax.bar(x, y, width=width, color=color, label=queue)
+        width = min(0.24, 0.8 / max(1, len(implementations)))
+        for i, implementation in enumerate(implementations):
+            color = COLORS[i % len(COLORS)]
+            center = (len(implementations) - 1) / 2
+            x = [position + (i - center) * width for position in positions]
+            y = [
+                mean(values[payload, capacity, implementation])
+                for capacity in capacities
+            ]
+            ax.bar(x, y, width=width, color=color, label=implementation)
         ax.set_title(LABELS[payload])
         ax.set_xticks(
             list(positions), [capacity_labels.get(x, str(x)) for x in capacities]

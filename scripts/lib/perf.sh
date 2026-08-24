@@ -9,15 +9,6 @@ qqu_ratio() {
   fi
 }
 
-qqu_queue_label() {
-  case "$1" in
-    qqu) echo qqu::spsc ;;
-    rigtorp) echo rigtorp::SPSCQueue ;;
-    aq) echo atomic_queue::AtomicQueue2 ;;
-    *) echo "$1" ;;
-  esac
-}
-
 qqu_payload_bytes() {
   case "$1" in
     u32) echo 4 ;;
@@ -60,7 +51,7 @@ qqu_run_perf_group() {
 qqu_emit_perf_csv() {
   local q=$1 payload=$2 cap=$3
   printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
-    perf "$(qqu_queue_label "$q")" "$payload" "$(qqu_payload_bytes "$payload")" "$cap" \
+    perf "$q" "$payload" "$(qqu_payload_bytes "$payload")" "$cap" \
     "${ev[cycles]:-0}" "${ev[instructions]:-0}" \
     "$(qqu_ratio "${ev[instructions]:-0}" "${ev[cycles]:-0}")" \
     "${ev[branches]:-0}" "${ev[branch-misses]:-0}" \
@@ -76,7 +67,9 @@ qqu_emit_perf_csv() {
 qqu_run_perf() {
   local bin=$1
   local out=$2
-  local -a queues=(qqu rigtorp aq)
+  local only=${3:-}
+  local out_tmp="$out.tmp"
+  local -a queues
   local -a payloads caps
   local -a groups=(
     cycles,instructions,branches,branch-misses
@@ -92,6 +85,13 @@ qqu_run_perf() {
     caps=(1024)
   fi
 
+  if [[ -n $only ]]; then
+    "$bin" --list --only "$only" >/dev/null
+    IFS=, read -ra queues <<<"$only"
+  else
+    mapfile -t queues < <("$bin" --list)
+  fi
+
   command -v perf >/dev/null 2>&1 || {
     echo "benchmark: perf not found" >&2
     return 1
@@ -103,7 +103,7 @@ qqu_run_perf() {
 
   printf '%s\n' \
     'metric,queue,payload,payload_bytes,capacity,cycles,instructions,ipc,branches,branch_misses,branch_miss_ratio,cache_refs,cache_misses,cache_miss_ratio,l1d_loads,l1d_misses,l1d_miss_ratio,context_switches,cpu_migrations,page_faults' \
-    >"$out"
+    >"$out_tmp"
 
   local q payload cap group
   local -a cmd
@@ -120,10 +120,14 @@ qqu_run_perf() {
         echo "==> perf $q payload=$payload capacity=$cap" >&2
         declare -gA ev=()
         for group in "${groups[@]}"; do
-          qqu_run_perf_group "$group" "${cmd[@]}" || return 1
+          if ! qqu_run_perf_group "$group" "${cmd[@]}"; then
+            rm -f "$out_tmp"
+            return 1
+          fi
         done
-        qqu_emit_perf_csv "$q" "$payload" "$cap" >>"$out"
+        qqu_emit_perf_csv "$q" "$payload" "$cap" >>"$out_tmp"
       done
     done
   done
+  mv "$out_tmp" "$out"
 }

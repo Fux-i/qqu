@@ -1,7 +1,4 @@
-#include "spsc.h"
-
-#include <atomic_queue/atomic_queue.h>
-#include <rigtorp/SPSCQueue.h>
+#include "adapters.hpp"
 
 #include <algorithm>
 #include <array>
@@ -61,21 +58,54 @@ struct Cfg {
 
     char const *only    = nullptr;
     char const *payload = nullptr;
+    bool        list    = false;
 };
 
-bool want_queue(char const *only, char const *name) {
+bool want_queue(char const *only, std::string_view name) {
     if (!only || !*only)
         return true;
-    std::string_view o = only, n = name;
-    if (o == n)
-        return true;
-    if (o == "qqu" && n.starts_with("qqu"))
-        return true;
-    if (o == "rigtorp" && n.starts_with("rigtorp"))
-        return true;
-    if ((o == "aq" || o == "atomic_queue") && n.starts_with("atomic_queue"))
-        return true;
+    std::string_view list = only;
+    while (!list.empty()) {
+        auto comma = list.find(',');
+        auto item  = list.substr(0, comma);
+        if (item == name)
+            return true;
+        if (comma == std::string_view::npos)
+            break;
+        list.remove_prefix(comma + 1);
+    }
     return false;
+}
+
+bool registered_adapter(std::string_view name) {
+    bool found = false;
+    qqu::benchmark::for_each_adapter<u32, 1024>(
+        [&](std::string_view candidate, auto) { found |= candidate == name; });
+    return found;
+}
+
+void print_adapters(FILE *stream = stdout) {
+    qqu::benchmark::for_each_adapter<u32, 1024>(
+        [stream](std::string_view name, auto) { std::println(stream, "{}", name); });
+}
+
+void validate_only(char const *only) {
+    if (!only || !*only)
+        return;
+    std::string_view list = only;
+    while (!list.empty()) {
+        auto comma = list.find(',');
+        auto name  = list.substr(0, comma);
+        if (name.empty() || !registered_adapter(name)) {
+            std::println(stderr, "unknown adapter in --only: {}", name);
+            std::println(stderr, "available adapters:");
+            print_adapters(stderr);
+            std::exit(2);
+        }
+        if (comma == std::string_view::npos)
+            break;
+        list.remove_prefix(comma + 1);
+    }
 }
 
 // cross-core (default): distinct physical cores, e.g. 6,8
@@ -156,54 +186,6 @@ u64 scalar(T const &v) noexcept {
     else
         return v.words[0];
 }
-
-template <class T, unsigned Cap>
-struct Qqu {
-    using value_type = T;
-    qqu::spsc<T, Cap> q;
-
-    void push(T const &v) noexcept {
-        q.push(v);
-    }
-    void pop(T &v) noexcept {
-        q.pop(v);
-    }
-};
-
-// atomic_queue SPSC: SIZE capacity, no minimize-contention shuffle, no
-// maximize-throughput. AtomicQueue2 avoids NIL reservation on the value domain.
-template <class T, unsigned Cap>
-struct Aq {
-    using value_type = T;
-    using Q = atomic_queue::AtomicQueue2<T, Cap, false, false, false, true>;
-    Q q;
-
-    void push(T const &v) noexcept {
-        q.push(v);
-    }
-    void pop(T &v) noexcept {
-        v = q.pop();
-    }
-};
-
-template <class T, unsigned Cap>
-struct Rigtorp {
-    using value_type = T;
-    rigtorp::SPSCQueue<T> q{Cap};
-
-    void push(T const &v) noexcept {
-        q.push(v);
-    }
-    void pop(T &v) noexcept {
-        for (;;) {
-            if (T *p = q.front()) {
-                v = *p;
-                q.pop();
-                return;
-            }
-        }
-    }
-};
 
 struct Sync {
     std::atomic<int> ready{0};
@@ -292,8 +274,9 @@ Stats stats_of(std::span<double const> xs) {
     return {mean, stdev, ci95, xs.front(), xs.back()};
 }
 
-void print_throughput(char const *name, char const *payload, std::size_t bytes,
-                      u32 capacity, std::vector<double> &mps) {
+void print_throughput(std::string_view name, char const *payload,
+                      std::size_t bytes, u32 capacity,
+                      std::vector<double> &mps) {
     for (std::size_t i = 0; i < mps.size(); ++i)
         std::println(
             "raw metric=throughput queue={} payload={} payload_bytes={} "
@@ -317,15 +300,15 @@ void print_throughput(char const *name, char const *payload, std::size_t bytes,
 
 template <class T>
 struct Competitor {
-    char const                           *name;
+    std::string_view                      name;
     std::vector<T>                        samples;
     std::function<void(std::vector<T> &)> run;
 };
 
-template <class T, std::size_t N>
-void run_rounds(std::array<Competitor<T>, N> &competitors, u32 runs,
+template <class T>
+void run_rounds(std::vector<Competitor<T>> &competitors, u32 runs,
                 char const *only) {
-    std::array<std::size_t, N> order{};
+    std::vector<std::size_t> order(competitors.size());
     std::ranges::iota(order, std::size_t{0});
     std::mt19937 rng(std::random_device{}());
     for (u32 round = 0; round < runs; ++round) {
@@ -407,8 +390,9 @@ struct Latency {
     double p50, p90, p99, p999;
 };
 
-void print_ping_pong(char const *name, char const *payload, std::size_t bytes,
-                     u32 capacity, std::vector<Latency> const &runs) {
+void print_ping_pong(std::string_view name, char const *payload,
+                     std::size_t bytes, u32 capacity,
+                     std::vector<Latency> const &runs) {
     std::array<std::vector<double>, 4> values;
     for (std::size_t i = 0; i < runs.size(); ++i) {
         auto const &run = runs[i];
@@ -452,7 +436,8 @@ void usage(char const *argv0) {
                  "[--payload P] [--capacity N] [-n N] [-r RUNS]\n"
                  "  --scenario cross  different physical cores (default 6,8)\n"
                  "  --scenario smt    same-core SMT siblings (default 6,7)\n"
-                 "  --only Q          qqu|rigtorp|aq\n"
+                 "  --only Q[,Q...]   canonical registry names\n"
+                 "  --list            print canonical registry names\n"
                  "  --payload P       u32|u64|p16|p64\n"
                  "  --capacity N      64|1024|65536\n"
                  "Env: QQU_N QQU_RUNS QQU_CPUS",
@@ -476,6 +461,8 @@ Cfg parse(int argc, char **argv) {
         if (a == "-h" || a == "--help") {
             usage(argv[0]);
             std::exit(0);
+        } else if (a == "--list") {
+            c.list = true;
         } else if (a == "--throughput") {
             c.do_tp = true;
             c.do_pp = false;
@@ -511,15 +498,7 @@ Cfg parse(int argc, char **argv) {
             }
             cpus_set = true;
         } else if (a == "--only" && i + 1 < argc) {
-            c.only             = argv[++i];
-            std::string_view o = c.only;
-            if (o != "qqu" && o != "rigtorp" && o != "aq" &&
-                o != "atomic_queue" && o != "qqu::spsc" &&
-                o != "rigtorp::SPSCQueue" &&
-                o != "atomic_queue::AtomicQueue2") {
-                usage(argv[0]);
-                std::exit(2);
-            }
+            c.only = argv[++i];
         } else if (a == "--payload" && i + 1 < argc) {
             c.payload          = argv[++i];
             std::string_view p = c.payload;
@@ -550,6 +529,7 @@ Cfg parse(int argc, char **argv) {
         std::println(stderr, "n and runs must be > 0");
         std::exit(2);
     }
+    validate_only(c.only);
     return c;
 }
 
@@ -558,29 +538,17 @@ void run_case(Cfg const &cfg, double nspt, char const *payload) {
     std::println("---- payload={} bytes={} capacity={} ----", payload,
                  sizeof(T), Cap);
     if (cfg.do_tp) {
-        std::array competitors{
-            Competitor<double>{"qqu::spsc",
-                               {},
-                               [&](auto &xs) {
-                                   Qqu<T, Cap> q;
-                                   xs.push_back(double(cfg.n) /
-                                                once_throughput(cfg, q));
-                               }},
-            Competitor<double>{"rigtorp::SPSCQueue",
-                               {},
-                               [&](auto &xs) {
-                                   Rigtorp<T, Cap> q;
-                                   xs.push_back(double(cfg.n) /
-                                                once_throughput(cfg, q));
-                               }},
-            Competitor<double>{"atomic_queue::AtomicQueue2",
-                               {},
-                               [&](auto &xs) {
-                                   Aq<T, Cap> q;
-                                   xs.push_back(double(cfg.n) /
-                                                once_throughput(cfg, q));
-                               }},
-        };
+        std::vector<Competitor<double>> competitors;
+        qqu::benchmark::for_each_adapter<T, Cap>(
+            [&](std::string_view name, auto type) {
+                using Q = typename decltype(type)::type;
+                competitors.push_back(
+                    {name, {}, [&, name](auto &xs) {
+                         Q q;
+                         xs.push_back(double(cfg.n) / once_throughput(cfg, q));
+                     }});
+            },
+            cfg.only == nullptr);
         run_rounds(competitors, cfg.runs, cfg.only);
         for (auto &competitor : competitors)
             if (!competitor.samples.empty())
@@ -597,22 +565,15 @@ void run_case(Cfg const &cfg, double nspt, char const *payload) {
             runs.push_back({pct(samples, 50), pct(samples, 90),
                             pct(samples, 99), pct(samples, 99.9)});
         };
-        std::array competitors{
-            Competitor<Latency>{
-                "qqu::spsc",
-                {},
-                [&](auto &xs) { run.template operator()<Qqu<T, Cap>>(xs); }},
-            Competitor<Latency>{"rigtorp::SPSCQueue",
-                                {},
-                                [&](auto &xs) {
-                                    run.template operator()<Rigtorp<T, Cap>>(
-                                        xs);
-                                }},
-            Competitor<Latency>{
-                "atomic_queue::AtomicQueue2",
-                {},
-                [&](auto &xs) { run.template operator()<Aq<T, Cap>>(xs); }},
-        };
+        std::vector<Competitor<Latency>> competitors;
+        qqu::benchmark::for_each_adapter<T, Cap>(
+            [&](std::string_view name, auto type) {
+                using Q = typename decltype(type)::type;
+                competitors.push_back({name, {}, [&, name](auto &xs) {
+                                           run.template operator()<Q>(xs);
+                                       }});
+            },
+            cfg.only == nullptr);
         for (auto &competitor : competitors) {
             if (!want_queue(cfg.only, competitor.name))
                 continue;
@@ -649,6 +610,11 @@ void run_payload(Cfg const &cfg, double nspt, char const *payload) {
 
 int main(int argc, char **argv) {
     Cfg cfg = parse(argc, argv);
+
+    if (cfg.list) {
+        print_adapters();
+        return 0;
+    }
 
     double nspt = 0;
     if (cfg.do_pp) {

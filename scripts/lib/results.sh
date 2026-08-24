@@ -6,6 +6,7 @@ qqu_bench_to_csv() {
       print "metric,queue,payload,payload_bytes,capacity,run,msgs_per_s,p50_ns,p90_ns,p99_ns,p999_ns"
     }
     /^raw / {
+      records++
       split("", kv)
       for (i = 2; i <= NF; i++) {
         eq = index($i, "=")
@@ -19,5 +20,9 @@ qqu_bench_to_csv() {
       next
     }
     { print > "/dev/stderr" }
+    END {
+      if (records == 0)
+        exit 1
+    }
   '
 }

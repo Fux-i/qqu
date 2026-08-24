@@ -13,6 +13,7 @@ full=0
 do_perf=0
 cpus="${QQU_CPUS:-}"
 comment="${QQU_COMMENT:-}"
+only="${QQU_ONLY:-}"
 bench_args=()
 
 usage() {
@@ -30,6 +31,7 @@ Options:
   --scenario S    cross (default, different cores) or smt (same-core SMT)
   --smt           alias for --scenario smt (cpus 6,7 unless --cpus set)
   --perf          perf stat per queue (cache/branch/IPC); separate result file
+  --only Q[,Q...] benchmark only the selected registry implementations
   -m, --comment C short result comment (default: scenario)
   -h, --help      show this help
   (implicit)      sets performance profile and disables turbo before runs
@@ -68,6 +70,8 @@ while [[ $# -gt 0 ]]; do
     --full) full=1; shift ;;
     --smt) scenario=smt; shift ;;
     --perf) do_perf=1; shift ;;
+    --only) need_arg "$@"; only=$2; shift 2 ;;
+    --only=*) only=${1#--only=}; shift ;;
     --scenario) need_arg "$@"; scenario=$2; shift 2 ;;
     --scenario=*) scenario=${1#--scenario=}; shift ;;
     --cpus) need_arg "$@"; cpus=$2; shift 2 ;;
@@ -129,7 +133,7 @@ for t in "${targets[@]}"; do
   fi
 
   if ((do_perf)); then
-    if ! qqu_run_perf "$build/$t" "$stem.perf.csv"; then
+    if ! qqu_run_perf "$build/$t" "$stem.perf.csv" "$only"; then
       status=1
     fi
     continue
@@ -139,10 +143,15 @@ for t in "${targets[@]}"; do
   ((full)) && run+=(--full)
   [[ -n $scenario ]] && run+=(--scenario "$scenario")
   [[ -n $cpus ]] && run+=(--cpus "$cpus")
+  [[ -n $only ]] && run+=(--only "$only")
   run+=("${bench_args[@]+"${bench_args[@]}"}")
 
-  if ! qqu_with_pin "${run[@]}" 2>"$stem.log" | qqu_bench_to_csv >"$stem.bench.csv"; then
+  csv_tmp="$stem.bench.csv.tmp"
+  if ! qqu_with_pin "${run[@]}" | qqu_bench_to_csv >"$csv_tmp"; then
     status=1
+    rm -f "$csv_tmp" "$stem.bench.csv"
+  else
+    mv "$csv_tmp" "$stem.bench.csv"
   fi
 done
 exit "$status"
