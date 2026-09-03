@@ -111,8 +111,8 @@ case "$suite" in
 esac
 
 qqu_refuse_sanitizer
-qqu_cmake_release "${targets[@]}"
 qqu_set_quiet
+qqu_cmake_release "${targets[@]}"
 
 raw_dir="$results_dir/raw"
 date_stamp=$(date +%Y%m%d)

@@ -28,16 +28,19 @@ qqu_cmake_release() {
 }
 
 qqu_set_quiet() {
-  if command -v powerprofilesctl >/dev/null 2>&1; then
-    powerprofilesctl set performance 2>/dev/null \
-      || echo "benchmark: warning: powerprofilesctl set performance failed" >&2
-  fi
+  local -a sudo=()
+  ((EUID == 0)) || sudo=(sudo)
+
+  command -v powerprofilesctl >/dev/null 2>&1 || {
+    echo "benchmark: powerprofilesctl not found" >&2
+    return 1
+  }
+  "${sudo[@]}" powerprofilesctl set performance
+
   if [[ -w /sys/devices/system/cpu/cpufreq/boost ]]; then
     echo 0 >/sys/devices/system/cpu/cpufreq/boost
-  elif sudo sh -c 'echo 0 > /sys/devices/system/cpu/cpufreq/boost'; then
-    :
   else
-    echo "benchmark: warning: cannot disable turbo (needs root)" >&2
+    "${sudo[@]}" sh -c 'echo 0 > /sys/devices/system/cpu/cpufreq/boost'
   fi
 }
 
