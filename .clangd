@@ -21,6 +21,8 @@ Diagnostics:
       - readability-identifier-length
       - readability-math-missing-parentheses
       - readability-uppercase-literal-suffix
+      - cppcoreguidelines-avoid-c-arrays
+      - modernize-avoid-c-arrays
 
 ---
 If:
