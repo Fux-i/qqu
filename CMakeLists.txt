@@ -52,8 +52,13 @@ add_executable(qqu_test_spsc src/tests/spsc.cc)
 target_link_libraries(qqu_test_spsc PRIVATE
   GTest::gtest_main
 )
+add_executable(qqu_test_mpsc src/tests/mpsc.cc)
+target_link_libraries(qqu_test_mpsc PRIVATE
+  GTest::gtest_main
+)
 include(GoogleTest)
 gtest_discover_tests(qqu_test_spsc)
+gtest_discover_tests(qqu_test_mpsc)
 
 # --- benchmarks ---
 FetchContent_Declare(

@@ -25,6 +25,7 @@ Usage: test.sh [suite] [--san=asan|tsan|ubsan] [gtest-args...]
 
 Suites:
   spsc   qqu_test_spsc
+  mpsc   qqu_test_mpsc
   all    all test targets (default)
 
 Options:
@@ -39,6 +40,7 @@ Env:
 Examples:
   ./scripts/test.sh
   ./scripts/test.sh spsc
+  ./scripts/test.sh mpsc
   ./scripts/test.sh spsc --gtest_filter='*stress*'
   ./scripts/test.sh spsc --san=asan
   ./scripts/test.sh spsc --san=tsan --gtest_filter='*stress*:*soak*'
@@ -97,7 +99,8 @@ fi
 
 case "$suite" in
   spsc) targets=(qqu_test_spsc) ;;
-  all)  targets=(qqu_test_spsc) ;; # add qqu_test_mpsc / qqu_test_mpmc later
+  mpsc) targets=(qqu_test_mpsc) ;;
+  all)  targets=(qqu_test_spsc qqu_test_mpsc) ;;
   *)
     echo "unknown suite: $suite" >&2
     usage >&2

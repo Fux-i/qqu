@@ -1,5 +1,6 @@
 #pragma once
 
+#include "common.h"
 #include <atomic>
 #include <bit>
 #include <cstddef>
@@ -9,8 +10,6 @@
 #include <utility>
 
 namespace qqu {
-
-static constexpr size_t DEFAULT_ALIGN = 64;
 
 template <typename T, size_t N, size_t ALIGN = DEFAULT_ALIGN>
     requires(N > 1 && std::has_single_bit(N) &&
