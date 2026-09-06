@@ -1,4 +1,4 @@
-#include "qqu.h"
+#include "spsc.h"
 
 #include <gtest/gtest.h>
 
@@ -238,5 +238,172 @@ TEST(qqu_test, remap_capacity) {
         ASSERT_TRUE(q.try_pop(v));
         EXPECT_EQ(v, i);
     }
+    EXPECT_TRUE(q.empty());
+}
+
+TEST(qqu_stress, spsc_soak_10m) {
+    constexpr int       n = 10'000'000;
+    qqu::spsc<int, 512> q;
+    std::thread         prod([&] {
+        for (int i = 0; i < n;)
+            if (q.try_push(i))
+                ++i;
+    });
+    std::thread         cons([&] {
+        int v, expect = 0;
+        while (expect < n) {
+            if (q.try_pop(v)) {
+                ASSERT_EQ(v, expect);
+                ++expect;
+            }
+        }
+    });
+    prod.join();
+    cons.join();
+    EXPECT_TRUE(q.empty());
+}
+
+TEST(qqu_stress, spsc_edge_cap2) {
+    constexpr int          n = 5'000'000;
+    qqu::spsc<int, 2>      q;
+    std::atomic<long long> sum{0};
+    constexpr long long    expect_sum = static_cast<long long>(n) * (n - 1) / 2;
+    std::thread            prod([&] {
+        for (int i = 0; i < n;)
+            if (q.try_push(i))
+                ++i;
+    });
+    std::thread            cons([&] {
+        int got = 0, v;
+        while (got < n) {
+            if (q.try_pop(v)) {
+                sum.fetch_add(v, std::memory_order_relaxed);
+                ++got;
+            }
+        }
+    });
+    prod.join();
+    cons.join();
+    EXPECT_EQ(sum.load(), expect_sum);
+    EXPECT_TRUE(q.empty());
+}
+
+TEST(qqu_stress, spsc_edge_cap65536) {
+    constexpr int          n = 5'000'000;
+    qqu::spsc<int, 65536>  q;
+    std::atomic<long long> sum{0};
+    constexpr long long    expect_sum = static_cast<long long>(n) * (n - 1) / 2;
+    std::thread            prod([&] {
+        for (int i = 0; i < n;)
+            if (q.try_push(i))
+                ++i;
+    });
+    std::thread            cons([&] {
+        int got = 0, v;
+        while (got < n) {
+            if (q.try_pop(v)) {
+                sum.fetch_add(v, std::memory_order_relaxed);
+                ++got;
+            }
+        }
+    });
+    prod.join();
+    cons.join();
+    EXPECT_EQ(sum.load(), expect_sum);
+    EXPECT_TRUE(q.empty());
+}
+
+TEST(qqu_stress, spsc_fast_producer) {
+    constexpr int          n = 3'000'000;
+    qqu::spsc<int, 128>    q;
+    std::atomic<long long> sum{0};
+    constexpr long long    expect_sum = static_cast<long long>(n) * (n - 1) / 2;
+    std::thread            prod([&] {
+        for (int i = 0; i < n;)
+            if (q.try_push(i))
+                ++i;
+    });
+    std::thread            cons([&] {
+        int got = 0, v;
+        while (got < n) {
+            if (q.try_pop(v)) {
+                sum.fetch_add(v, std::memory_order_relaxed);
+                ++got;
+                for (int j = 0; j < 10; ++j)
+                    _mm_pause();
+            }
+        }
+    });
+    prod.join();
+    cons.join();
+    EXPECT_EQ(sum.load(), expect_sum);
+    EXPECT_TRUE(q.empty());
+}
+
+TEST(qqu_stress, spsc_fast_consumer) {
+    constexpr int          n = 3'000'000;
+    qqu::spsc<int, 128>    q;
+    std::atomic<long long> sum{0};
+    constexpr long long    expect_sum = static_cast<long long>(n) * (n - 1) / 2;
+    std::thread            prod([&] {
+        for (int i = 0; i < n;) {
+            if (q.try_push(i))
+                ++i;
+            else
+                for (int j = 0; j < 10; ++j)
+                    _mm_pause();
+        }
+    });
+    std::thread            cons([&] {
+        int got = 0, v;
+        while (got < n) {
+            if (q.try_pop(v)) {
+                sum.fetch_add(v, std::memory_order_relaxed);
+                ++got;
+            }
+        }
+    });
+    prod.join();
+    cons.join();
+    EXPECT_EQ(sum.load(), expect_sum);
+    EXPECT_TRUE(q.empty());
+}
+
+TEST(qqu_stress, spsc_bursty) {
+    constexpr int          n = 2'000'000;
+    qqu::spsc<int, 256>    q;
+    std::atomic<long long> sum{0};
+    constexpr long long    expect_sum = static_cast<long long>(n) * (n - 1) / 2;
+    std::thread            prod([&] {
+        std::mt19937 rng(42);
+        for (int i = 0; i < n;) {
+            const int burst = std::min(n - i, static_cast<int>(rng() % 50 + 1));
+            for (int b = 0; b < burst;)
+                if (q.try_push(i + b))
+                    ++b;
+            i += burst;
+            for (int j = 0; j < 5; ++j)
+                _mm_pause();
+        }
+    });
+    std::thread            cons([&] {
+        std::mt19937 rng(43);
+        int          got = 0, v;
+        while (got < n) {
+            const int burst =
+                std::min(n - got, static_cast<int>(rng() % 30 + 1));
+            for (int b = 0; b < burst;)
+                if (q.try_pop(v)) {
+                    sum.fetch_add(v, std::memory_order_relaxed);
+                    ++got;
+                    ++b;
+                }
+            for (int j = 0; j < 5; ++j)
+                _mm_pause();
+        }
+    });
+    prod.join();
+    cons.join();
+    EXPECT_EQ(sum.load(), expect_sum);
     EXPECT_TRUE(q.empty());
 }
