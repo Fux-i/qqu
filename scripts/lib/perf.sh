@@ -50,7 +50,10 @@ qqu_run_perf_group() {
 
 qqu_emit_perf_csv() {
   local q=$1 payload=$2 cap=$3
-  printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
+  local producer_cpus=${cpus%,*}
+  local -a producers
+  IFS=, read -ra producers <<<"$producer_cpus"
+  printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
     perf "$q" "$payload" "$(qqu_payload_bytes "$payload")" "$cap" \
     "${ev[cycles]:-0}" "${ev[instructions]:-0}" \
     "$(qqu_ratio "${ev[instructions]:-0}" "${ev[cycles]:-0}")" \
@@ -61,7 +64,7 @@ qqu_emit_perf_csv() {
     "${ev[L1-dcache-loads]:-0}" "${ev[L1-dcache-load-misses]:-0}" \
     "$(qqu_ratio "${ev[L1-dcache-load-misses]:-0}" "${ev[L1-dcache-loads]:-0}")" \
     "${ev[context-switches]:-0}" "${ev[cpu-migrations]:-0}" \
-    "${ev[page-faults]:-0}"
+    "${ev[page-faults]:-0}" "${bin##*qqu_bench_}" "${#producers[@]}" wait
 }
 
 qqu_run_perf() {
@@ -102,18 +105,16 @@ qqu_run_perf() {
   fi
 
   printf '%s\n' \
-    'metric,queue,payload,payload_bytes,capacity,cycles,instructions,ipc,branches,branch_misses,branch_miss_ratio,cache_refs,cache_misses,cache_miss_ratio,l1d_loads,l1d_misses,l1d_miss_ratio,context_switches,cpu_migrations,page_faults' \
+    'metric,queue,payload,payload_bytes,capacity,cycles,instructions,ipc,branches,branch_misses,branch_miss_ratio,cache_refs,cache_misses,cache_miss_ratio,l1d_loads,l1d_misses,l1d_miss_ratio,context_switches,cpu_migrations,page_faults,suite,producers,api' \
     >"$out_tmp"
 
   local q payload cap group
-  local -a cmd
+  local -a cmd run
+  qqu_bench_command "$bin"
   for q in "${queues[@]}"; do
     for payload in "${payloads[@]}"; do
       for cap in "${caps[@]}"; do
-        cmd=("$bin" --throughput --only "$q" --payload "$payload" --capacity "$cap")
-        ((full)) && cmd+=(--full) || cmd+=(--quick)
-        [[ -n $scenario ]] && cmd+=(--scenario "$scenario")
-        [[ -n $cpus ]] && cmd+=(--cpus "$cpus")
+        cmd=("${run[@]}" --throughput --only "$q" --payload "$payload" --capacity "$cap")
         if [[ -n $cpus ]] && command -v taskset >/dev/null 2>&1; then
           cmd=(taskset -c "$cpus" "${cmd[@]}")
         fi

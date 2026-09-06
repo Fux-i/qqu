@@ -42,7 +42,9 @@ def plot(rows, metric, field, title, ylabel, output):
             center = (len(implementations) - 1) / 2
             x = [position + (i - center) * width for position in positions]
             y = [
-                mean(values[payload, capacity, implementation])
+                mean(samples)
+                if (samples := values.get((payload, capacity, implementation)))
+                else float("nan")
                 for capacity in capacities
             ]
             ax.bar(x, y, width=width, color=color, label=implementation)
@@ -77,30 +79,42 @@ def main():
     required = {"metric", "queue", "payload", "capacity"}
     if any(not required <= row.keys() for row in rows):
         parser.error("result is missing required columns")
-    plot(
-        rows,
-        "throughput",
-        "msgs_per_s",
-        "SPSC Throughput",
-        "Messages / second",
-        output_dir / f"{prefix}.throughput.svg",
-    )
-    plot(
-        rows,
-        "latency",
-        "p50_ns",
-        "SPSC Ping-Pong Latency (p50)",
-        "p50 RTT (ns)",
-        output_dir / f"{prefix}.latency-p50.svg",
-    )
-    plot(
-        rows,
-        "latency",
-        "p99_ns",
-        "SPSC Ping-Pong Latency (p99)",
-        "p99 RTT (ns)",
-        output_dir / f"{prefix}.latency-p99.svg",
-    )
+    groups = defaultdict(list)
+    for row in rows:
+        groups[
+            row.get("suite") or "spsc",
+            row.get("producers") or "1",
+            row.get("latency_kind") or "ping_pong_rtt",
+        ].append(row)
+    for (suite, producers, latency_kind), group in groups.items():
+        stem = (
+            prefix
+            if len(groups) == 1
+            else f"{prefix}.{suite}.{producers}p.{latency_kind}"
+        )
+        title = f"{suite.upper()} ({producers}P / 1C)"
+        latency_label = (
+            "Fan-In + Acknowledgement"
+            if latency_kind == "fan_in_ack_rtt"
+            else "Ping-Pong"
+        )
+        plot(
+            group,
+            "throughput",
+            "msgs_per_s",
+            f"{title} Throughput",
+            "Messages / second",
+            output_dir / f"{stem}.throughput.svg",
+        )
+        for percentile in ("p50", "p99"):
+            plot(
+                group,
+                "latency",
+                f"{percentile}_ns",
+                f"{title} {latency_label} Latency ({percentile})",
+                f"{percentile} RTT (ns)",
+                output_dir / f"{stem}.latency-{percentile}.svg",
+            )
 
 
 if __name__ == "__main__":

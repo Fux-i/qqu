@@ -20,7 +20,14 @@ qqu_metadata() {
     printf '# compiler_version=%s\n' "$line"
   done
 
-  for dep in spscqueue atomic_queue; do
+  local -a dependencies=(atomic_queue)
+  case "$target" in
+    qqu_bench_mpsc) dependencies+=(mpmcqueue) ;;
+    qqu_bench_spsc) dependencies+=(spscqueue) ;;
+  esac
+  printf '# suite=%s cpus=%s api=wait\n' "${target#qqu_bench_}" "$cpu_pair"
+  printf '# bench_args='; printf '%q ' "${bench_args[@]}"; printf '\n'
+  for dep in "${dependencies[@]}"; do
     local dep_dir="$root/deps/${dep}-src"
     if [[ -d $dep_dir/.git ]]; then
       printf '# dependency=%s version=%s commit=%s\n' "$dep" \

@@ -5,6 +5,7 @@ source "$(dirname "$0")/lib/common.sh"
 source "$(dirname "$0")/lib/metadata.sh"
 source "$(dirname "$0")/lib/perf.sh"
 source "$(dirname "$0")/lib/results.sh"
+source "$(dirname "$0")/lib/benchmark.sh"
 
 qqu_prefer_cxx
 
@@ -21,15 +22,16 @@ usage() {
 Usage: benchmark [suite] [options] [-- bench-args...]
 
 Suites:
+  mpsc   qqu_bench_mpsc (default: two producers, one consumer)
   spsc   qqu_bench_spsc
   all    all bench targets (default)
 
 Options:
   --quick         capacity 1024, smaller N, single run (default)
   --full          all capacities with the full N and run count
-  --cpus P,C      pin producer,consumer (also used with taskset if present)
+  --cpus P[,P],C  pin producers, then consumer; all uses first,last for SPSC
   --scenario S    cross (default, different cores) or smt (same-core SMT)
-  --smt           alias for --scenario smt (cpus 6,7 unless --cpus set)
+  --smt           alias for --scenario smt (SPSC 6,7; MPSC 6,8,7)
   --perf          perf stat per queue (cache/branch/IPC); separate result file
   --only Q[,Q...] benchmark only the selected registry implementations
   -m, --comment C short result comment (default: scenario)
@@ -54,6 +56,9 @@ Examples:
   ./scripts/benchmark spsc --perf --full
   ./scripts/benchmark spsc --scenario smt --cpus 0,1
   ./scripts/benchmark spsc -- --latency -n 500000
+  ./scripts/benchmark mpsc --cpus 0,2,4
+  ./scripts/benchmark mpsc --full --cpus 0,2,4,6,8
+  ./scripts/benchmark all --cpus 0,2,4
   ./scripts/plot
 USAGE
 }
@@ -95,14 +100,13 @@ if [[ -n $scenario && $scenario != cross && $scenario != smt ]]; then
   echo "benchmark: --scenario must be cross or smt" >&2
   exit 1
 fi
-[[ $scenario == smt && -z $cpus ]] && cpus=6,7
-[[ $scenario == cross && -z $cpus ]] && cpus=6,8
-
 suite=${suite:-all}
 comment=${comment:-${scenario:-cross}}
 
 case "$suite" in
-  spsc | all) targets=(qqu_bench_spsc) ;;
+  mpsc) targets=(qqu_bench_mpsc) ;;
+  spsc) targets=(qqu_bench_spsc) ;;
+  all) targets=(qqu_bench_mpsc qqu_bench_spsc) ;;
   *)
     echo "unknown suite: $suite" >&2
     usage >&2
@@ -114,44 +118,13 @@ qqu_refuse_sanitizer
 qqu_set_quiet
 qqu_cmake_release "${targets[@]}"
 
-raw_dir="$results_dir/raw"
 date_stamp=$(date +%Y%m%d)
 time_stamp=$(date +%H%M%S)
 
 status=0
 for t in "${targets[@]}"; do
-  type=${t#qqu_bench_}
-  out_dir="$raw_dir/$date_stamp.$type"
-  mkdir -p "$out_dir"
-  stem="$out_dir/$time_stamp.$comment"
-  meta="$stem.meta.txt"
-  echo "==> $t  (build=$build) -> $stem"
-
-  if ! qqu_metadata "$t" >"$meta"; then
+  if ! qqu_run_benchmark "$t"; then
     status=1
-    continue
-  fi
-
-  if ((do_perf)); then
-    if ! qqu_run_perf "$build/$t" "$stem.perf.csv" "$only"; then
-      status=1
-    fi
-    continue
-  fi
-
-  run=("$build/$t")
-  ((full)) && run+=(--full)
-  [[ -n $scenario ]] && run+=(--scenario "$scenario")
-  [[ -n $cpus ]] && run+=(--cpus "$cpus")
-  [[ -n $only ]] && run+=(--only "$only")
-  run+=("${bench_args[@]+"${bench_args[@]}"}")
-
-  csv_tmp="$stem.bench.csv.tmp"
-  if ! qqu_with_pin "${run[@]}" | qqu_bench_to_csv >"$csv_tmp"; then
-    status=1
-    rm -f "$csv_tmp" "$stem.bench.csv"
-  else
-    mv "$csv_tmp" "$stem.bench.csv"
   fi
 done
 exit "$status"

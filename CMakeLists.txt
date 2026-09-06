@@ -75,14 +75,25 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(atomic_queue)
 
+FetchContent_Declare(
+  MPMCQueue
+  GIT_REPOSITORY https://github.com/rigtorp/MPMCQueue.git
+  GIT_TAG b74a9f06469ec268b82eca3b5fe28dd58f312d06
+)
+FetchContent_MakeAvailable(MPMCQueue)
+
 find_package(Threads REQUIRED)
 
 add_executable(qqu_bench_spsc src/benchmarks/spsc_bench.cc)
-target_link_libraries(qqu_bench_spsc PRIVATE
-  Threads::Threads
-  SPSCQueue::SPSCQueue
-  atomic_queue::atomic_queue
-)
-if(NOT QQU_SANITIZER OR QQU_SANITIZER STREQUAL "none")
-  target_compile_options(qqu_bench_spsc PRIVATE -march=native)
-endif()
+add_executable(qqu_bench_mpsc src/benchmarks/mpsc_bench.cc)
+target_link_libraries(qqu_bench_spsc PRIVATE SPSCQueue::SPSCQueue)
+target_link_libraries(qqu_bench_mpsc PRIVATE MPMCQueue::MPMCQueue)
+foreach(suite IN ITEMS mpsc spsc)
+  target_link_libraries(qqu_bench_${suite} PRIVATE
+    Threads::Threads
+    atomic_queue::atomic_queue
+  )
+  if(NOT QQU_SANITIZER OR QQU_SANITIZER STREQUAL "none")
+    target_compile_options(qqu_bench_${suite} PRIVATE -march=native)
+  endif()
+endforeach()

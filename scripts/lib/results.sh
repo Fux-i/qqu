@@ -3,7 +3,7 @@
 qqu_bench_to_csv() {
   awk '
     BEGIN {
-      print "metric,queue,payload,payload_bytes,capacity,run,msgs_per_s,p50_ns,p90_ns,p99_ns,p999_ns"
+      print "metric,queue,payload,payload_bytes,capacity,run,msgs_per_s,p50_ns,p90_ns,p99_ns,p999_ns,suite,producers,latency_kind,api,n"
     }
     /^raw / {
       records++
@@ -13,10 +13,11 @@ qqu_bench_to_csv() {
         if (eq)
           kv[substr($i, 1, eq - 1)] = substr($i, eq + 1)
       }
-      printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n", \
+      printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n", \
         kv["metric"], kv["queue"], kv["payload"], kv["payload_bytes"], \
         kv["capacity"], kv["run"], kv["msgs_per_s"], \
-        kv["p50_ns"], kv["p90_ns"], kv["p99_ns"], kv["p999_ns"]
+        kv["p50_ns"], kv["p90_ns"], kv["p99_ns"], kv["p999_ns"], \
+        kv["suite"], kv["producers"], kv["latency_kind"], kv["api"], kv["n"]
       next
     }
     { print > "/dev/stderr" }
