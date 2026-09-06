@@ -60,6 +60,7 @@ Examples:
   ./scripts/benchmark mpsc --full --cpus 0,2,4,6,8
   ./scripts/benchmark all --cpus 0,2,4
   ./scripts/plot
+  ./scripts/summary
 USAGE
 }
 

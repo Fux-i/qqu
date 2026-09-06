@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+results_dir=${RESULTS_DIR:-"$root/results"}
+raw_dir="$results_dir/raw"
+txt_dir="$results_dir/txt"
+
+case "${1:-all}" in
+  mpsc) suites=(mpsc) ;;
+  spsc) suites=(spsc) ;;
+  all) suites=(spsc mpsc) ;;
+  *) echo 'Usage: summary [spsc|mpsc|all]' >&2; exit 1 ;;
+esac
+
+for suite in "${suites[@]}"; do
+  files=("$raw_dir"/*."$suite"/*.bench.csv)
+  [[ -e ${files[0]} ]] || { echo "summary: no $suite results" >&2; continue; }
+  
+  latest=${files[${#files[@]}-1]}
+  group=${latest%/*}
+  group=${group##*/}
+  date=${group%%.*}
+  name=${latest##*/}
+  output="$txt_dir/$group/${name%.bench.csv}.summary.txt"
+  mkdir -p "$txt_dir/$group"
+  
+  awk -v suite="$suite" -v date="$date" '
+    BEGIN { FS = "," }
+    NR == 1 {
+      for (i = 1; i <= NF; i++) h[$i] = i
+      next
+    }
+    {
+      metric = $h["metric"]
+      queue = $h["queue"]
+      payload = $h["payload"]
+      capacity = $h["capacity"]
+      
+      key = queue SUBSEP payload SUBSEP capacity
+      
+      if (metric == "throughput" && $h["msgs_per_s"] != "") {
+        tp_sum[key] += $h["msgs_per_s"]
+        tp_cnt[key]++
+      } else if (metric == "latency") {
+        if ($h["p50_ns"] != "") {
+          p50_sum[key] += $h["p50_ns"]
+          p50_cnt[key]++
+        }
+        if ($h["p99_ns"] != "") {
+          p99_sum[key] += $h["p99_ns"]
+          p99_cnt[key]++
+        }
+      }
+      
+      if (!(payload in payloads)) payloads[payload] = 1
+      if (!(queue in queues)) {
+        queues[queue] = ++qcount
+        qlist[qcount] = queue
+      }
+      if (!(capacity in capacities)) capacities[capacity] = 1
+    }
+    END {
+      n = split("u32 u64 p16 p64", plist, " ")
+      
+      baseline = "qqu::" suite
+      
+      cap = 1024
+      for (c in capacities) {
+        if (c == 1024) { cap = c; break }
+      }
+      
+      printf "%s Benchmark Summary (%04d-%02d-%02d)\n", \
+        toupper(suite), substr(date,1,4), substr(date,5,2), substr(date,7,2)
+      printf "Configuration: capacity=%s (averaged across runs)\n\n", cap
+      
+      printf "Throughput (Mops/s):\n"
+      for (i = 1; i <= n; i++) {
+        p = plist[i]
+        if (!(p in payloads)) continue
+        
+        key = baseline SUBSEP p SUBSEP cap
+        if (!(key in tp_sum)) continue
+        baseline_val = tp_sum[key] / tp_cnt[key]
+        printf "  %-4s  %-30s %7.1f  [baseline]\n", p, baseline, baseline_val / 1e6
+        
+        for (j = 1; j <= qcount; j++) {
+          q = qlist[j]
+          if (q == baseline) continue
+          key = q SUBSEP p SUBSEP cap
+          if (!(key in tp_sum)) continue
+          val = tp_sum[key] / tp_cnt[key]
+          diff = (val - baseline_val) / baseline_val * 100
+          printf "        %-30s %7.1f  (%+.1f%%)\n", q, val / 1e6, diff
+        }
+      }
+      
+      printf "\nLatency p50 (ns):\n"
+      for (i = 1; i <= n; i++) {
+        p = plist[i]
+        if (!(p in payloads)) continue
+        
+        key = baseline SUBSEP p SUBSEP cap
+        if (!(key in p50_sum)) continue
+        baseline_val = p50_sum[key] / p50_cnt[key]
+        printf "  %-4s  %-30s %7.1f  [baseline]\n", p, baseline, baseline_val
+        
+        for (j = 1; j <= qcount; j++) {
+          q = qlist[j]
+          if (q == baseline) continue
+          key = q SUBSEP p SUBSEP cap
+          if (!(key in p50_sum)) continue
+          val = p50_sum[key] / p50_cnt[key]
+          diff = (val - baseline_val) / baseline_val * 100
+          printf "        %-30s %7.1f  (%+.1f%%)\n", q, val, diff
+        }
+      }
+      
+      printf "\nLatency p99 (ns):\n"
+      for (i = 1; i <= n; i++) {
+        p = plist[i]
+        if (!(p in payloads)) continue
+        
+        key = baseline SUBSEP p SUBSEP cap
+        if (!(key in p99_sum)) continue
+        baseline_val = p99_sum[key] / p99_cnt[key]
+        printf "  %-4s  %-30s %7.1f  [baseline]\n", p, baseline, baseline_val
+        
+        for (j = 1; j <= qcount; j++) {
+          q = qlist[j]
+          if (q == baseline) continue
+          key = q SUBSEP p SUBSEP cap
+          if (!(key in p99_sum)) continue
+          val = p99_sum[key] / p99_cnt[key]
+          diff = (val - baseline_val) / baseline_val * 100
+          printf "        %-30s %7.1f  (%+.1f%%)\n", q, val, diff
+        }
+      }
+      
+      print ""
+    }
+  ' "$latest" > "$output"
+
+  echo "Summary written to $output"
+  cat "$output"
+done
