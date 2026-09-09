@@ -1,0 +1,23 @@
+name: mpsc_test
+description: Quick MPSC test (2 producers only)
+
+system:
+  performance_mode: false
+  producer_cpus: [2, 4]
+  consumer_cpu: 10
+
+build:
+  target: qqu_bench_mpsc
+
+matrix:
+  producer_counts: [2]
+
+benchmark:
+  element_types: [u32]
+  capacities: [1024]
+  runs: 1
+  messages: 10000
+  queues: ["qqu::mpsc", "rigtorp::MPMCQueue"]
+
+output:
+  base: results

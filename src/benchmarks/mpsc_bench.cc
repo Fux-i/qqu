@@ -1,8 +1,5 @@
 #include "common.hpp"
-#include "mpsc.h"
-
-#include <atomic_queue/atomic_queue.h>
-#include <rigtorp/MPMCQueue.h>
+#include "mpsc_adapters.hpp"
 
 #include <atomic>
 #include <type_traits>
@@ -10,45 +7,6 @@
 namespace {
 
 using namespace qqu::benchmark;
-
-template <class T, u32 Capacity>
-struct QquMpsc {
-    using value_type = T;
-    qqu::mpsc<T, Capacity> queue;
-
-    void push(T const &message) noexcept {
-        queue.push(message);
-    }
-    void pop(T &message) noexcept {
-        queue.pop(message);
-    }
-};
-
-template <class T, u32 Capacity>
-struct AtomicMpsc {
-    using value_type = T;
-    atomic_queue::AtomicQueue2<T, Capacity> queue;
-
-    void push(T const &message) noexcept {
-        queue.push(message);
-    }
-    void pop(T &message) noexcept {
-        message = queue.pop();
-    }
-};
-
-template <class T, u32 Capacity>
-struct RigtorpMpsc {
-    using value_type = T;
-    rigtorp::MPMCQueue<T> queue{Capacity};
-
-    void push(T const &message) noexcept {
-        queue.push(message);
-    }
-    void pop(T &message) noexcept {
-        queue.pop(message);
-    }
-};
 
 struct alignas(64) Reply {
     std::atomic<u64> completed{0};
@@ -62,12 +20,10 @@ struct MpscSuite {
     static constexpr bool             multi_producer = true;
 
     template <class T, u32 Capacity, class F>
-    static void adapters(F &&visit, bool = false) {
-        visit("qqu::mpsc", std::type_identity<QquMpsc<T, Capacity>>{});
-        visit("atomic_queue::AtomicQueue2",
-              std::type_identity<AtomicMpsc<T, Capacity>>{});
-        visit("rigtorp::MPMCQueue",
-              std::type_identity<RigtorpMpsc<T, Capacity>>{});
+    static void adapters(F &&visit, bool defaults_only = false) {
+        for_each_mpsc_adapter<T, Capacity>(
+            [&](std::string_view name, auto type_id) { visit(name, type_id); },
+            defaults_only);
     }
 
     template <class Q>

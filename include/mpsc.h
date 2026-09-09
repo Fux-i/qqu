@@ -81,7 +81,7 @@ class mpsc {
                     return true;
                 }
             } else if (diff < 0) {
-                return false;
+                return false; // full
             } else {
                 pos = _head.load(std::memory_order_relaxed);
             }
@@ -111,7 +111,7 @@ class mpsc {
     }
 
     auto push(T &&v) noexcept -> void {
-        while (!try_push(v))
+        while (!try_push(std::move(v)))
             _mm_pause();
     }
 

@@ -1,0 +1,23 @@
+name: spsc_baseline
+description: SPSC baseline benchmark
+
+system:
+  performance_mode: true
+  producer_cpus: [2]
+  consumer_cpu: 10
+
+build:
+  target: qqu_bench_spsc
+
+matrix:
+  producer_counts: [1]
+
+benchmark:
+  element_types: [u32, u64, p16, p64]
+  capacities: [1024]
+  runs: 3
+  messages: 1000000
+  queues: []
+
+output:
+  base: results

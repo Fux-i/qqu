@@ -1,5 +1,5 @@
-#include "adapters.hpp"
 #include "common.hpp"
+#include "spsc_adapters.hpp"
 
 namespace {
 

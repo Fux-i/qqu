@@ -1,5 +1,0 @@
-[project]
-name = "qqu-benchmark-plots"
-version = "0.1.0"
-requires-python = ">=3.12"
-dependencies = ["matplotlib>=3.10"]
