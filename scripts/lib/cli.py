@@ -4,25 +4,29 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from .config import list_experiments, load_experiment, validate_experiment
-from .runner import run_experiment
+from .config import list_tasks, load_experiment, validate_experiment
+from .runner import build_target, run_experiment
 
 
 def cmd_list():
-    experiments = list_experiments()
-    if not experiments:
-        print("No experiments found in experiments/")
+    tasks = list_tasks()
+    if not tasks:
+        print("No tasks found in tasks/")
         return
-    print("Available experiments:")
-    for exp in experiments:
+    print("Available tasks:")
+    for exp in tasks:
         print(f"  {exp}")
 
 
 def cmd_show(name: str):
     try:
         config = load_experiment(name)
-        print(f"Experiment: {config.name}")
+        print(f"Task: {config.name}")
         print(f"Description: {config.description}")
+        if config.build.target.startswith("qqu_test_"):
+            print(f"Target: {config.build.target}")
+            print(f"Arguments: {config.args}")
+            return
         print(f"\nSystem:")
         print(f"  Performance mode: {config.system.performance_mode}")
         print(f"  Producer CPUs: {config.system.producer_cpus}")
@@ -54,25 +58,7 @@ def cmd_validate(name: str):
         sys.exit(1)
 
 
-def cmd_test(suite: str, args: list[str]):
-    targets = {"mpsc_test": "qqu_test_mpsc", "spsc_test": "qqu_test_spsc"}
-    target = targets.get(suite)
-    if target is None:
-        print(f"Unknown test suite: {suite}", file=sys.stderr)
-        sys.exit(1)
-
-    root = Path(__file__).parent.parent.parent
-    build = root / "build"
-    subprocess.run(
-        ["cmake", "--build", str(build), "--target", target], check=True
-    )
-    subprocess.run([str(build / target), *args], check=True)
-
-
-def cmd_run(name: str):
-    from .analyzer import generate_summary
-    from .plotter import generate_plots
-    
+def cmd_run(name: str, args: list[str]):
     try:
         config = load_experiment(name)
         valid, msg = validate_experiment(name)
@@ -80,10 +66,18 @@ def cmd_run(name: str):
             print(f"Error: {msg}", file=sys.stderr)
             sys.exit(1)
         
-        print(f"==> Experiment: {config.name}")
+        print(f"==> Task: {config.name}", flush=True)
         print(f"    {config.description}")
         print()
         
+        if config.build.target.startswith("qqu_test_"):
+            binary = build_target(config.build.target)
+            subprocess.run([str(binary), *config.args, *args], check=True)
+            return
+
+        from .analyzer import generate_summary
+        from .plotter import generate_plots
+
         result = run_experiment(config)
         
         print()
@@ -163,7 +157,7 @@ def cmd_plot(name_filter: Optional[str] = None):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: qqu <experiment> | list | show <experiment> | validate <experiment> | summary [filter] | plot [filter]", file=sys.stderr)
+        print("Usage: qqu <task> [gtest-args...] | list | show <task> | validate <task> | summary [filter] | plot [filter]", file=sys.stderr)
         sys.exit(1)
     
     cmd = sys.argv[1]
@@ -172,12 +166,12 @@ def main():
         cmd_list()
     elif cmd == "show":
         if len(sys.argv) < 3:
-            print("Usage: qqu show <experiment>", file=sys.stderr)
+            print("Usage: qqu show <task>", file=sys.stderr)
             sys.exit(1)
         cmd_show(sys.argv[2])
     elif cmd == "validate":
         if len(sys.argv) < 3:
-            print("Usage: qqu validate <experiment>", file=sys.stderr)
+            print("Usage: qqu validate <task>", file=sys.stderr)
             sys.exit(1)
         cmd_validate(sys.argv[2])
     elif cmd == "summary":
@@ -186,10 +180,8 @@ def main():
     elif cmd == "plot":
         name_filter = sys.argv[2] if len(sys.argv) > 2 else None
         cmd_plot(name_filter)
-    elif cmd in {"mpsc_test", "spsc_test"}:
-        cmd_test(cmd, sys.argv[2:])
     else:
-        cmd_run(cmd)
+        cmd_run(cmd, sys.argv[2:])
 
 
 if __name__ == "__main__":

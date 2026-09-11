@@ -1,0 +1,4 @@
+name: spsc_test
+description: SPSC GTest suite
+build:
+  target: qqu_test_spsc

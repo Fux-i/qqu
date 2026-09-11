@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
@@ -40,23 +40,32 @@ class BuildConfig:
 class ExperimentConfig:
     name: str
     description: str
-    system: SystemConfig
     build: BuildConfig
-    matrix: MatrixConfig
-    benchmark: BenchmarkConfig
-    output: OutputConfig
+    system: Optional[SystemConfig] = None
+    matrix: Optional[MatrixConfig] = None
+    benchmark: Optional[BenchmarkConfig] = None
+    output: Optional[OutputConfig] = None
+    args: list[str] = field(default_factory=list)
 
 
 def load_experiment(name: str) -> ExperimentConfig:
-    exp_dir = Path(__file__).parent.parent.parent / "experiments"
+    exp_dir = Path(__file__).parent.parent.parent / "tasks"
     yaml_path = exp_dir / f"{name}.yaml"
     
     if not yaml_path.exists():
-        raise FileNotFoundError(f"Experiment not found: {yaml_path}")
+        raise FileNotFoundError(f"Task not found: {yaml_path}")
     
     with yaml_path.open() as f:
         data = yaml.safe_load(f)
     
+    if data["build"]["target"].startswith("qqu_test_"):
+        return ExperimentConfig(
+            name=data["name"],
+            description=data["description"],
+            build=BuildConfig(**data["build"]),
+            args=data.get("args", []),
+        )
+
     return ExperimentConfig(
         name=data["name"],
         description=data["description"],
@@ -68,8 +77,8 @@ def load_experiment(name: str) -> ExperimentConfig:
     )
 
 
-def list_experiments() -> list[str]:
-    exp_dir = Path(__file__).parent.parent.parent / "experiments"
+def list_tasks() -> list[str]:
+    exp_dir = Path(__file__).parent.parent.parent / "tasks"
     if not exp_dir.exists():
         return []
     return sorted(p.stem for p in exp_dir.glob("*.yaml"))
@@ -78,6 +87,8 @@ def list_experiments() -> list[str]:
 def validate_experiment(name: str) -> tuple[bool, str]:
     try:
         config = load_experiment(name)
+        if config.build.target.startswith("qqu_test_"):
+            return True, "valid"
         
         if not config.system.producer_cpus:
             return False, "system.producer_cpus cannot be empty"

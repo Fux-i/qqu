@@ -1,4 +1,4 @@
-name: mpsc_test
+name: mpsc_quick
 description: Quick MPSC test (2 producers only)
 
 system:
@@ -17,7 +17,7 @@ benchmark:
   capacities: [1024]
   runs: 1
   messages: 10000
-  queues: ["qqu::mpsc", "rigtorp::MPMCQueue"]
+  queues: []
 
 output:
   base: results

@@ -1,0 +1,4 @@
+name: mpsc_test
+description: MPSC GTest suite
+build:
+  target: qqu_test_mpsc
