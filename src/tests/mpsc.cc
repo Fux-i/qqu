@@ -1,7 +1,10 @@
 #include "mpsc.h"
+#include "mpsc_fetchadd.h"
+#include "mpsc_remap.h"
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <atomic>
 #include <random>
 #include <thread>
@@ -11,6 +14,79 @@ struct stu {
     int  age{};
     char name[8]{};
 };
+
+TEST(qqu_variants, fetchadd_full_does_not_abandon_ticket) {
+    qqu::mpsc_fetchadd<int, 2> queue;
+    ASSERT_TRUE(queue.try_push(1));
+    ASSERT_TRUE(queue.try_push(2));
+    ASSERT_FALSE(queue.try_push(3));
+    int output{};
+    ASSERT_TRUE(queue.try_pop(output));
+    EXPECT_EQ(output, 1);
+    ASSERT_TRUE(queue.try_push(3));
+    ASSERT_TRUE(queue.try_pop(output));
+    EXPECT_EQ(output, 2);
+    ASSERT_TRUE(queue.try_pop(output));
+    EXPECT_EQ(output, 3);
+}
+
+TEST(qqu_variants, remap_slot_sequences) {
+    auto check = []<class T, size_t Capacity>() {
+        qqu::mpsc_remap<T, Capacity> queue;
+        for (size_t cycle = 0; cycle < 3; ++cycle) {
+            for (size_t index = 0; index < Capacity; ++index) {
+                T message{};
+                message[0] = cycle * Capacity + index;
+                ASSERT_TRUE(queue.try_push(message));
+            }
+            T output{};
+            for (size_t index = 0; index < Capacity; ++index) {
+                ASSERT_TRUE(queue.try_pop(output));
+                EXPECT_EQ(output[0], cycle * Capacity + index);
+            }
+            EXPECT_TRUE(queue.empty());
+        }
+    };
+    check.template operator()<std::array<uint32_t, 1>, 2>();
+    check.template operator()<std::array<uint32_t, 1>, 64>();
+    check.template operator()<std::array<uint64_t, 8>, 64>();
+}
+
+TEST(qqu_variants, mixed_producers_wrap_around) {
+    auto check = []<class Queue>() {
+        constexpr int messages = 10'000;
+        constexpr int producer_count = 4;
+        Queue queue;
+        std::vector<std::jthread> producers;
+        for (int producer = 0; producer < producer_count; ++producer) {
+            producers.emplace_back([&, producer] {
+                for (int index = 0; index < messages; ++index) {
+                    const int message = producer * messages + index;
+                    if (producer % 2 == 0)
+                        queue.push(message);
+                    else
+                        while (!queue.try_push(message))
+                            _mm_pause();
+                }
+            });
+        }
+        std::vector<int> seen(messages * producer_count);
+        for (int index = 0; index < messages * producer_count; ++index) {
+            int message{};
+            queue.pop(message);
+            EXPECT_GE(message, 0);
+            EXPECT_LT(message, messages * producer_count);
+            if (message >= 0 && message < messages * producer_count)
+                ++seen[message];
+        }
+        producers.clear();
+        for (int count : seen)
+            EXPECT_EQ(count, 1);
+        EXPECT_TRUE(queue.empty());
+    };
+    check.template operator()<qqu::mpsc_fetchadd<int, 4>>();
+    check.template operator()<qqu::mpsc_remap<int, 4>>();
+}
 
 TEST(qqu_test, empty_try_pop) {
     qqu::mpsc<stu, 8> q;

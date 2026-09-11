@@ -513,8 +513,7 @@ void run_case(Cfg const &cfg, double nspt, char const *payload) {
                          samples.push_back(double(cfg.n) * cfg.cpu_ps.size() /
                                            once_throughput(cfg, *queue));
                      }});
-            },
-            cfg.only == nullptr);
+            });
         run_rounds(competitors, cfg.runs, cfg.only);
         for (auto &competitor : competitors)
             if (!competitor.samples.empty())
@@ -535,8 +534,7 @@ void run_case(Cfg const &cfg, double nspt, char const *payload) {
                          runs.push_back({pct(samples, 50), pct(samples, 90),
                                          pct(samples, 99), pct(samples, 99.9)});
                      }});
-            },
-            cfg.only == nullptr);
+            });
         for (auto &competitor : competitors) {
             if (!want_queue(cfg.only, competitor.name))
                 continue;

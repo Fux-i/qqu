@@ -14,10 +14,10 @@
 
 namespace qqu::benchmark {
 
-template <class T, unsigned Capacity>
+template <class T, unsigned Capacity, class Queue = qqu::mpsc<T, Capacity>>
 struct QquMpsc {
     using value_type = T;
-    qqu::mpsc<T, Capacity> q;
+    Queue q;
 
     void push(T const &value) noexcept {
         q.push(value);
@@ -61,6 +61,15 @@ void for_each_mpsc_adapter(F &&f, bool defaults_only = false) {
     };
 
     visit.template operator()<QquMpsc<T, Capacity>>("qqu::mpsc", true);
+    visit.template operator()<
+        QquMpsc<T, Capacity, qqu::mpsc_aligned<T, Capacity>>>(
+        "qqu::mpsc_aligned", false);
+    visit.template operator()<
+        QquMpsc<T, Capacity, qqu::mpsc_fetchadd<T, Capacity>>>(
+        "qqu::mpsc_fetchadd", false);
+    visit.template operator()<
+        QquMpsc<T, Capacity, qqu::mpsc_remap<T, Capacity>>>(
+        "qqu::mpsc_remap", false);
     visit.template operator()<AtomicMpsc<T, Capacity>>(
         "atomic_queue::AtomicQueue2", true);
     visit.template operator()<RigtorpMpsc<T, Capacity>>("rigtorp::MPMCQueue",

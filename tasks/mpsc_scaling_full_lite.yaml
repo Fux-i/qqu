@@ -1,0 +1,23 @@
+name: mpsc_scaling_full_lite
+description: MPSC multi-producer scaling (full mode)
+
+system:
+  performance_mode: true
+  producer_cpus: [2, 4, 6, 8]
+  consumer_cpu: 10
+
+build:
+  target: qqu_bench_mpsc
+
+matrix:
+  producer_counts: [2]
+
+benchmark:
+  element_types: [u32, u64]
+  capacities: [512, 1024]
+  runs: 1
+  messages: 1000000
+  queues: qqu_variants
+
+output:
+  base: results

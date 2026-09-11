@@ -66,13 +66,26 @@ def load_experiment(name: str) -> ExperimentConfig:
             args=data.get("args", []),
         )
 
+    benchmark = BenchmarkConfig(**data["benchmark"])
+    if isinstance(benchmark.queues, str):
+        group = benchmark.queues
+        target = data["build"]["target"]
+        with (exp_dir.parent / "queue_groups.yaml").open() as f:
+            groups = yaml.safe_load(f)
+        queues = groups.get(target, {}).get(group)
+        if not isinstance(queues, list) or not queues or not all(
+            isinstance(queue, str) and queue for queue in queues
+        ):
+            raise ValueError(f"Unknown or invalid queue group {group!r} for {target}")
+        benchmark.queues = queues
+
     return ExperimentConfig(
         name=data["name"],
         description=data["description"],
         system=SystemConfig(**data["system"]),
         build=BuildConfig(**data["build"]),
         matrix=MatrixConfig(**data["matrix"]),
-        benchmark=BenchmarkConfig(**data["benchmark"]),
+        benchmark=benchmark,
         output=OutputConfig(**data["output"]),
     )
 

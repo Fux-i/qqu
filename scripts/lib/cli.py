@@ -38,13 +38,12 @@ def cmd_show(name: str):
         print(f"  Capacities: {config.benchmark.capacities}")
         print(f"  Runs: {config.benchmark.runs}")
         print(f"  Messages: {config.benchmark.messages}")
-        if config.benchmark.queues:
-            print(f"  Queues: {config.benchmark.queues}")
+        print(f"  Queues: {config.benchmark.queues or 'all'}")
         print(f"\nBuild:")
         print(f"  Target: {config.build.target}")
         print(f"\nOutput:")
         print(f"  Base: {config.output.base}")
-    except FileNotFoundError as e:
+    except (FileNotFoundError, ValueError) as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -105,7 +104,7 @@ def cmd_run(name: str, args: list[str]):
         generate_plots(result.csv_path, svg_dir)
         print(f"    Plots: {svg_dir}")
         
-    except FileNotFoundError as e:
+    except (FileNotFoundError, ValueError) as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
     except Exception as e:

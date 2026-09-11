@@ -1,0 +1,16 @@
+qqu_bench_mpsc:
+  default:
+    - atomic_queue::AtomicQueue2
+    - qqu::mpsc
+    - rigtorp::MPMCQueue
+  qqu_variants:
+    - qqu::mpsc
+    - qqu::mpsc_aligned
+    - qqu::mpsc_fetchadd
+    - qqu::mpsc_remap
+
+qqu_bench_spsc:
+  default:
+    - atomic_queue::AtomicQueue2
+    - qqu::spsc
+    - rigtorp::SPSCQueue
