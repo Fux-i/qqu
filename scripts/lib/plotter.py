@@ -10,11 +10,18 @@ LABELS = {"u32": "uint32_t", "u64": "uint64_t", "p16": "16-byte", "p64": "64-byt
 COLORS = ["#0072B2", "#D55E00", "#009E73", "#CC79A7", "#F0E442", "#56B4E9"]
 
 
+def _placement_label(df: pd.DataFrame) -> str:
+    producer_cpus = df["producer_cpus"].iloc[0] if "producer_cpus" in df else "unknown"
+    consumer_cpu = df["consumer_cpu"].iloc[0] if "consumer_cpu" in df else "unknown"
+    return f"P: {producer_cpus} | C: {consumer_cpu}"
+
+
 def plot_capacity_comparison(df: pd.DataFrame, output_dir: Path, prefix: str):
     producer_counts = sorted(df["producer_count"].unique())
     
     for pc in producer_counts:
         df_pc = df[df["producer_count"] == pc]
+        placement = _placement_label(df_pc)
         
         values_tp = {}
         values_p50 = {}
@@ -37,7 +44,7 @@ def plot_capacity_comparison(df: pd.DataFrame, output_dir: Path, prefix: str):
         capacity_labels = {64: "64", 1024: "1K", 2048: "2K", 65536: "64K"}
         
         fig, axes = plt.subplots(2, 2, figsize=(11, 7), sharex=True, constrained_layout=True)
-        fig.suptitle(f"MPSC ({pc}P/1C) Throughput", fontsize=16)
+        fig.suptitle(f"MPSC ({pc}P/1C) Throughput | {placement}", fontsize=16)
         
         for payload, ax in zip(PAYLOADS, axes.flat):
             positions = list(range(len(capacities)))
@@ -67,7 +74,7 @@ def plot_capacity_comparison(df: pd.DataFrame, output_dir: Path, prefix: str):
         
         for percentile, values in [("p50", values_p50), ("p99", values_p99)]:
             fig, axes = plt.subplots(2, 2, figsize=(11, 7), sharex=True, constrained_layout=True)
-            fig.suptitle(f"MPSC ({pc}P/1C) Latency ({percentile})", fontsize=16)
+            fig.suptitle(f"MPSC ({pc}P/1C) Latency ({percentile}) | {placement}", fontsize=16)
             
             for payload, ax in zip(PAYLOADS, axes.flat):
                 positions = list(range(len(capacities)))

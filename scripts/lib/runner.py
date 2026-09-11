@@ -1,4 +1,5 @@
 import subprocess
+import csv
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -73,6 +74,8 @@ def run_benchmark(config: ExperimentConfig, producer_count: int, output_dir: Pat
                     k, v = field.split("=", 1)
                     row[k] = v
             row["producer_count"] = str(producer_count)
+            row["producer_cpus"] = ",".join(map(str, producer_cpus))
+            row["consumer_cpu"] = str(consumer_cpu)
             csv_rows.append(row)
     
     meta_path = output_dir / f"{timestamp}.{config.name}.{producer_count}p.meta.txt"
@@ -110,8 +113,8 @@ def run_experiment(config: ExperimentConfig) -> BenchmarkResult:
         keys = sorted(all_keys)
         
         with csv_path.open("w") as f:
-            f.write(",".join(keys) + "\n")
-            for row in all_rows:
-                f.write(",".join(row.get(k, "") for k in keys) + "\n")
+            writer = csv.DictWriter(f, fieldnames=keys)
+            writer.writeheader()
+            writer.writerows(all_rows)
     
     return BenchmarkResult(csv_path=csv_path, meta_path=output_dir / f"{timestamp}.{config.name}.2p.meta.txt")

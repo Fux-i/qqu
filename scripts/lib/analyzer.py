@@ -56,6 +56,8 @@ def compute_summary(df: pd.DataFrame, baseline_queue: Optional[str] = None) -> d
             summary[key]["latency_p50"] = {}
             summary[key]["latency_p99"] = {}
             summary[key]["baseline"] = baseline_queue
+            summary[key]["producer_cpus"] = df_pc["producer_cpus"].iloc[0] if "producer_cpus" in df_pc else "unknown"
+            summary[key]["consumer_cpu"] = df_pc["consumer_cpu"].iloc[0] if "consumer_cpu" in df_pc else "unknown"
             
             for queue in throughput_data.index:
                 tp = throughput_data[queue]
@@ -90,7 +92,11 @@ def format_summary(summary: dict, experiment_name: str, date: str) -> str:
         first_key = (pc, payloads[0])
         capacity = summary[first_key].get("capacity", 1024)
         baseline = summary[first_key].get("baseline", "")
+        producer_cpus = summary[first_key].get("producer_cpus", "unknown")
+        consumer_cpu = summary[first_key].get("consumer_cpu", "unknown")
         
+        lines.append(f"CPU placement: producers={producer_cpus}; consumer={consumer_cpu}")
+        lines.append("")
         lines.append(f"Configuration: capacity={capacity}")
         lines.append("")
         lines.append("Throughput (Mops/s):")
