@@ -19,17 +19,8 @@
       devShells.${system}.default = llvm.libcxxStdenv.mkDerivation {
         name = "qqu-dev-shell";
         nativeBuildInputs = with pkgs; [
-          (writeShellScriptBin "tests" ''
-            exec "$(git rev-parse --show-toplevel)/scripts/test" "$@"
-          '')
-          (writeShellScriptBin "bench" ''
-            exec "$(git rev-parse --show-toplevel)/scripts/benchmark" "$@"
-          '')
-          (writeShellScriptBin "plot" ''
-            exec "$(git rev-parse --show-toplevel)/scripts/plot" "$@"
-          '')
-          (writeShellScriptBin "summ" ''
-            exec "$(git rev-parse --show-toplevel)/scripts/summary" "$@"
+          (writeShellScriptBin "qqu" ''
+            exec "$(git rev-parse --show-toplevel)/scripts/.venv/bin/qqu" "$@"
           '')
           cmake
           gdb
