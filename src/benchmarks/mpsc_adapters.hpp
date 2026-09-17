@@ -1,9 +1,6 @@
 #pragma once
 
 #include "mpsc.h"
-#include "mpsc_aligned.h"
-#include "mpsc_fetchadd.h"
-#include "mpsc_remap.h"
 
 #include <atomic_queue/atomic_queue.h>
 #include <rigtorp/MPMCQueue.h>
@@ -61,18 +58,6 @@ void for_each_mpsc_adapter(F &&f, bool defaults_only = false) {
     };
 
     visit.template operator()<QquMpsc<T, Capacity>>("qqu::mpsc", true);
-    visit.template
-    operator()<QquMpsc<T, Capacity, qqu::mpsc_origin<T, Capacity>>>(
-        "qqu::mpsc_origin", false);
-    visit.template operator()<
-        QquMpsc<T, Capacity, qqu::mpsc_aligned<T, Capacity>>>(
-        "qqu::mpsc_aligned", false);
-    visit.template operator()<
-        QquMpsc<T, Capacity, qqu::mpsc_fetchadd<T, Capacity>>>(
-        "qqu::mpsc_fetchadd", false);
-    visit.template operator()<
-        QquMpsc<T, Capacity, qqu::mpsc_remap<T, Capacity>>>(
-        "qqu::mpsc_remap", false);
     visit.template operator()<AtomicMpsc<T, Capacity>>(
         "atomic_queue::AtomicQueue2", true);
     visit.template operator()<RigtorpMpsc<T, Capacity>>("rigtorp::MPMCQueue",
