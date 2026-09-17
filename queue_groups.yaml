@@ -1,3 +1,9 @@
+qqu_bench_mpmc:
+  default:
+    - atomic_queue::AtomicQueue2
+    - qqu::mpmc
+    - rigtorp::MPMCQueue
+
 qqu_bench_mpsc:
   default:
     - atomic_queue::AtomicQueue2

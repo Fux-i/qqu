@@ -9,7 +9,8 @@ import yaml
 class SystemConfig:
     performance_mode: bool
     producer_cpus: list[int]
-    consumer_cpu: int
+    consumer_cpu: int = 0
+    consumer_cpus: list[int] = field(default_factory=list)
 
 
 @dataclass

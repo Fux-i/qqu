@@ -11,9 +11,11 @@ COLORS = ["#0072B2", "#D55E00", "#009E73", "#CC79A7", "#F0E442", "#56B4E9"]
 
 
 def _placement_label(df: pd.DataFrame) -> str:
-    producer_cpus = df["producer_cpus"].iloc[0] if "producer_cpus" in df else "unknown"
-    consumer_cpu = df["consumer_cpu"].iloc[0] if "consumer_cpu" in df else "unknown"
-    return f"P: {producer_cpus} | C: {consumer_cpu}"
+    producer_cpus = df["producer_cpus"].iloc[0] if "producer_cpus" in df.columns else "unknown"
+    consumer_cpus = df["consumer_cpus"].iloc[0] if "consumer_cpus" in df.columns else (
+        df["consumer_cpu"].iloc[0] if "consumer_cpu" in df.columns else "unknown"
+    )
+    return f"P: {producer_cpus} | C: {consumer_cpus}"
 
 
 def plot_capacity_comparison(df: pd.DataFrame, output_dir: Path, prefix: str):

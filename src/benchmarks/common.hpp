@@ -276,6 +276,7 @@ struct Cfg {
     u32              n    = kDefaultN;
     u32              runs = kDefaultRuns;
     std::vector<int> cpu_ps;
+    std::vector<int> cpu_cs;
     int              cpu_c   = 8;
     bool             do_tp   = true;
     bool             do_pp   = true;
@@ -422,6 +423,7 @@ Cfg parse(int argc, char **argv) {
         invalid();
     cfg.cpu_c = cfg.cpu_ps.back();
     cfg.cpu_ps.pop_back();
+    cfg.cpu_cs.push_back(cfg.cpu_c);
     if (cfg.quick) {
         cfg.n    = std::min(cfg.n, 100'000u);
         cfg.runs = std::min(cfg.runs, 1u);

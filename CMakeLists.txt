@@ -56,9 +56,14 @@ add_executable(qqu_test_mpsc src/tests/mpsc.cc)
 target_link_libraries(qqu_test_mpsc PRIVATE
   GTest::gtest_main
 )
+add_executable(qqu_test_mpmc src/tests/mpmc.cc)
+target_link_libraries(qqu_test_mpmc PRIVATE
+  GTest::gtest_main
+)
 include(GoogleTest)
 gtest_discover_tests(qqu_test_spsc)
 gtest_discover_tests(qqu_test_mpsc)
+gtest_discover_tests(qqu_test_mpmc)
 
 # --- benchmarks ---
 FetchContent_Declare(
@@ -86,9 +91,11 @@ find_package(Threads REQUIRED)
 
 add_executable(qqu_bench_spsc src/benchmarks/spsc_bench.cc)
 add_executable(qqu_bench_mpsc src/benchmarks/mpsc_bench.cc)
+add_executable(qqu_bench_mpmc src/benchmarks/mpmc_bench.cc)
 target_link_libraries(qqu_bench_spsc PRIVATE SPSCQueue::SPSCQueue)
 target_link_libraries(qqu_bench_mpsc PRIVATE MPMCQueue::MPMCQueue)
-foreach(suite IN ITEMS mpsc spsc)
+target_link_libraries(qqu_bench_mpmc PRIVATE MPMCQueue::MPMCQueue)
+foreach(suite IN ITEMS mpmc mpsc spsc)
   target_link_libraries(qqu_bench_${suite} PRIVATE
     Threads::Threads
     atomic_queue::atomic_queue

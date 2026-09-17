@@ -1,0 +1,4 @@
+name: mpmc_test
+description: MPMC GTest suite
+build:
+  target: qqu_test_mpmc

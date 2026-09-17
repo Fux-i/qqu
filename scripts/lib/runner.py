@@ -37,8 +37,8 @@ def run_benchmark(config: ExperimentConfig, producer_count: int, output_dir: Pat
     binary = build_target(config.build.target)
     
     producer_cpus = config.system.producer_cpus[:producer_count]
-    consumer_cpu = config.system.consumer_cpu
-    cpus = build_cpuset(producer_cpus + [consumer_cpu])
+    consumer_cpus = config.system.consumer_cpus if config.system.consumer_cpus else [config.system.consumer_cpu]
+    cpus = build_cpuset(producer_cpus + consumer_cpus)
     
     args = [
         str(binary),
@@ -74,8 +74,9 @@ def run_benchmark(config: ExperimentConfig, producer_count: int, output_dir: Pat
                     k, v = field.split("=", 1)
                     row[k] = v
             row["producer_count"] = str(producer_count)
+            row["consumer_count"] = str(len(consumer_cpus))
             row["producer_cpus"] = ",".join(map(str, producer_cpus))
-            row["consumer_cpu"] = str(consumer_cpu)
+            row["consumer_cpus"] = ",".join(map(str, consumer_cpus))
             csv_rows.append(row)
     
     meta_path = output_dir / f"{timestamp}.{config.name}.{producer_count}p.meta.txt"
