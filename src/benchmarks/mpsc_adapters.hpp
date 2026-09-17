@@ -61,6 +61,9 @@ void for_each_mpsc_adapter(F &&f, bool defaults_only = false) {
     };
 
     visit.template operator()<QquMpsc<T, Capacity>>("qqu::mpsc", true);
+    visit.template
+    operator()<QquMpsc<T, Capacity, qqu::mpsc_origin<T, Capacity>>>(
+        "qqu::mpsc_origin", false);
     visit.template operator()<
         QquMpsc<T, Capacity, qqu::mpsc_aligned<T, Capacity>>>(
         "qqu::mpsc_aligned", false);
