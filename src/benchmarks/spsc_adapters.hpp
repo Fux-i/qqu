@@ -1,6 +1,6 @@
 #pragma once
 
-#include "spsc.h"
+#include "qqu/spsc.h"
 
 #include <atomic_queue/atomic_queue.h>
 #include <rigtorp/SPSCQueue.h>

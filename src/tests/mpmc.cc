@@ -1,4 +1,4 @@
-#include "mpmc.h"
+#include "qqu/mpmc.h"
 
 #include <gtest/gtest.h>
 
@@ -7,6 +7,17 @@
 #include <random>
 #include <thread>
 #include <vector>
+
+namespace {
+
+struct Pair {
+    int first{};
+    int second{};
+    Pair() = default;
+    Pair(int a, int b) : first(a), second(b) {}
+};
+
+} // namespace
 
 TEST(mpmc, basic_push_pop) {
     qqu::mpmc<int, 4> queue;
@@ -47,12 +58,12 @@ TEST(mpmc, blocking_push_pop) {
 }
 
 TEST(mpmc, emplace) {
-    qqu::mpmc<std::array<int, 2>, 4> queue;
+    qqu::mpmc<Pair, 4> queue;
     ASSERT_TRUE(queue.try_emplace(1, 2));
-    std::array<int, 2> v{};
+    Pair v;
     ASSERT_TRUE(queue.try_pop(v));
-    EXPECT_EQ(v[0], 1);
-    EXPECT_EQ(v[1], 2);
+    EXPECT_EQ(v.first, 1);
+    EXPECT_EQ(v.second, 2);
 }
 
 TEST(mpmc, multi_producer_single_consumer) {
@@ -61,7 +72,7 @@ TEST(mpmc, multi_producer_single_consumer) {
     qqu::mpmc<size_t, 1024>       queue;
     std::atomic<size_t>           consumed{0};
     std::vector<std::thread>      producers;
-    std::array<size_t, kMessages> per_producer{};
+    std::array<size_t, kProducers> per_producer{};
 
     for (size_t p = 0; p < kProducers; ++p) {
         producers.emplace_back([&, p] {
@@ -105,13 +116,11 @@ TEST(mpmc, single_producer_multi_consumer) {
 
     for (size_t c = 0; c < kConsumers; ++c) {
         consumers.emplace_back([&] {
-            size_t local_count = 0;
             while (total_consumed.load(std::memory_order_relaxed) < kMessages) {
                 size_t v{};
                 if (queue.try_pop(v))
-                    ++local_count;
+                    total_consumed.fetch_add(1, std::memory_order_relaxed);
             }
-            total_consumed.fetch_add(local_count, std::memory_order_relaxed);
         });
     }
 
@@ -120,6 +129,7 @@ TEST(mpmc, single_producer_multi_consumer) {
         t.join();
 
     EXPECT_EQ(produced.load(), kMessages);
+    EXPECT_EQ(total_consumed.load(), kMessages);
     EXPECT_TRUE(queue.empty());
 }
 
@@ -144,14 +154,12 @@ TEST(mpmc, multi_producer_multi_consumer) {
 
     for (size_t c = 0; c < kConsumers; ++c) {
         consumers.emplace_back([&] {
-            size_t local_count = 0;
             while (consumed.load(std::memory_order_relaxed) <
                    kProducers * kMessages) {
                 size_t v{};
                 if (queue.try_pop(v))
-                    ++local_count;
+                    consumed.fetch_add(1, std::memory_order_relaxed);
             }
-            consumed.fetch_add(local_count, std::memory_order_relaxed);
         });
     }
 

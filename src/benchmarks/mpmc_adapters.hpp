@@ -1,6 +1,6 @@
 #pragma once
 
-#include "mpmc.h"
+#include "qqu/mpmc.h"
 
 #include <atomic_queue/atomic_queue.h>
 #include <rigtorp/MPMCQueue.h>
