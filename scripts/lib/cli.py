@@ -30,7 +30,8 @@ def cmd_show(name: str):
         print(f"\nSystem:")
         print(f"  Performance mode: {config.system.performance_mode}")
         print(f"  Producer CPUs: {config.system.producer_cpus}")
-        print(f"  Consumer CPU: {config.system.consumer_cpu}")
+        consumers = config.system.consumer_cpus or [config.system.consumer_cpu]
+        print(f"  Consumer CPUs: {consumers}")
         print(f"\nMatrix:")
         print(f"  Producer counts: {config.matrix.producer_counts}")
         print(f"\nBenchmark:")
@@ -104,13 +105,8 @@ def cmd_run(name: str, args: list[str]):
         generate_plots(result.csv_path, svg_dir)
         print(f"    Plots: {svg_dir}")
         
-    except (FileNotFoundError, ValueError) as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-    except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        import traceback
-        traceback.print_exc()
+    except Exception as error:
+        print(f"Error: {error}", file=sys.stderr)
         sys.exit(1)
 
 
