@@ -14,6 +14,7 @@ namespace qqu {
 template <typename T, size_t N, size_t ALIGN = DEFAULT_ALIGN>
     requires(N > 1 && std::has_single_bit(N) &&
              std::is_trivially_copyable_v<T> &&
+             std::is_default_constructible_v<T> &&
              std::is_trivially_destructible_v<T>)
 class mpmc {
     static constexpr size_t mask = N - 1;
@@ -63,17 +64,19 @@ class mpmc {
     template <typename... Args>
     [[nodiscard]]
     auto try_emplace(Args &&...args) noexcept -> bool {
-        T      v(std::forward<Args>(args)...);
         size_t head = _head.load(std::memory_order_acquire);
-        cell  &c    = _cells[head & mask];
-        if (c.seq.load(std::memory_order_acquire) != head) [[unlikely]]
-            return false;
-        if (!_head.compare_exchange_strong(head, head + 1,
-                                           std::memory_order_relaxed,
-                                           std::memory_order_relaxed))
-            return false;
-        c.v = std::move(v);
-        c.seq.store(head + 1, std::memory_order_release);
+        cell  *slot = nullptr;
+        for (;;) {
+            slot = &_cells[head & mask];
+            if (slot->seq.load(std::memory_order_acquire) != head) [[unlikely]]
+                return false;
+            if (_head.compare_exchange_weak(head, head + 1,
+                                            std::memory_order_relaxed,
+                                            std::memory_order_relaxed))
+                break;
+        }
+        slot->v = T(std::forward<Args>(args)...);
+        slot->seq.store(head + 1, std::memory_order_release);
         return true;
     }
 
@@ -108,16 +111,20 @@ class mpmc {
 
     [[nodiscard]]
     auto try_pop(T &v) noexcept -> bool {
-        size_t pos = _tail.load(std::memory_order_acquire);
-        cell  &c   = _cells[pos & mask];
-        if (c.seq.load(std::memory_order_acquire) != pos + 1) [[unlikely]]
-            return false;
-        if (!_tail.compare_exchange_strong(pos, pos + 1,
-                                           std::memory_order_relaxed,
-                                           std::memory_order_relaxed))
-            return false;
-        v = c.v;
-        c.seq.store(pos + N, std::memory_order_release);
+        size_t pos  = _tail.load(std::memory_order_acquire);
+        cell  *slot = nullptr;
+        for (;;) {
+            slot = &_cells[pos & mask];
+            if (slot->seq.load(std::memory_order_acquire) != pos + 1)
+                [[unlikely]]
+                return false;
+            if (_tail.compare_exchange_weak(pos, pos + 1,
+                                            std::memory_order_relaxed,
+                                            std::memory_order_relaxed))
+                break;
+        }
+        v = slot->v;
+        slot->seq.store(pos + N, std::memory_order_release);
         return true;
     }
 

@@ -14,6 +14,7 @@ namespace qqu {
 template <typename T, size_t N, size_t ALIGN = DEFAULT_ALIGN>
     requires(N > 1 && std::has_single_bit(N) &&
              std::is_trivially_copyable_v<T> &&
+             std::is_default_constructible_v<T> &&
              std::is_trivially_destructible_v<T>)
 class spsc {
     static constexpr size_t mask         = N - 1;
