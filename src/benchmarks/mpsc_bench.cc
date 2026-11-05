@@ -18,6 +18,7 @@ struct MpscSuite {
     static constexpr std::string_view smt_cpus       = "6,8,7";
     static constexpr std::string_view latency_kind   = "fan_in_ack_rtt";
     static constexpr bool             multi_producer = true;
+    static constexpr bool             multi_consumer = false;
 
     template <class T, u32 Capacity, class F>
     static void adapters(F &&visit, bool defaults_only = false) {

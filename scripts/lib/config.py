@@ -114,10 +114,22 @@ def validate_experiment(name: str) -> tuple[bool, str]:
             return False, f"max producer_count ({max(config.matrix.producer_counts)}) exceeds available CPUs ({len(config.system.producer_cpus)})"
         
         valid_types = {"u32", "u64", "p16", "p64"}
+        if not config.benchmark.element_types:
+            return False, "benchmark.element_types cannot be empty"
         for et in config.benchmark.element_types:
             if et not in valid_types:
                 return False, f"invalid element_type: {et}"
-        
+
+        valid_capacities = {64, 256, 512, 1024, 2048, 65536}
+        if not config.benchmark.capacities:
+            return False, "benchmark.capacities cannot be empty"
+        for capacity in config.benchmark.capacities:
+            if capacity not in valid_capacities:
+                return False, f"invalid capacity: {capacity}"
+
+        if config.benchmark.messages <= 0 or config.benchmark.runs <= 0:
+            return False, "benchmark.messages and benchmark.runs must be positive"
+
         return True, "valid"
     except Exception as e:
         return False, str(e)

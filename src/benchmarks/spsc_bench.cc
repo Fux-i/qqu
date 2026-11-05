@@ -11,6 +11,7 @@ struct SpscSuite {
     static constexpr std::string_view smt_cpus       = "6,7";
     static constexpr std::string_view latency_kind   = "ping_pong_rtt";
     static constexpr bool             multi_producer = false;
+    static constexpr bool             multi_consumer = false;
 
     template <class T, u32 Capacity, class F>
     static void adapters(F &&visit, bool defaults_only = false) {

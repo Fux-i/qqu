@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <barrier>
 #include <charconv>
 #include <chrono>
@@ -280,7 +281,7 @@ struct Cfg {
     int              cpu_c   = 8;
     bool             do_tp   = true;
     bool             do_pp   = true;
-    bool             quick   = true;
+    bool             quick   = false;
     u32              cap     = 0;
     char const      *only    = nullptr;
     char const      *payload = nullptr;
@@ -321,10 +322,10 @@ void validate_only(char const *only) {
 inline void usage(char const *program) {
     std::println(stderr,
                  "Usage: {} [--throughput|--latency|--all] [--quick|--full] "
-                 "[--scenario cross|smt] [--cpus P[,P...],C] [--only Q] "
+                 "[--scenario cross|smt] [--cpus P[,P...][|C[,C...]]] [--only Q] "
                  "[--payload P] [--capacity N] [-n N] [-r RUNS]\n"
-                 "  --cpus            producers first, consumer last; SPSC "
-                 "needs two CPUs\n"
+                 "  --cpus            producers before '|', consumers after; "
+                 "without '|' the last CPU is the consumer\n"
                  "  --scenario cross  SPSC: 6,8; MPSC: 6,8,10 (default)\n"
                  "  --scenario smt    SPSC: 6,7; MPSC: 6,8,7\n"
                  "  --only Q[,Q...]   canonical registry names\n"
@@ -393,7 +394,8 @@ Cfg parse(int argc, char **argv) {
         } else if (arg == "--capacity" && index + 1 < argc) {
             cfg.cap =
                 static_cast<u32>(std::strtoul(argv[++index], nullptr, 10));
-            if (cfg.cap != 64 && cfg.cap != 1024 && cfg.cap != 65536)
+            if (cfg.cap != 64 && cfg.cap != 256 && cfg.cap != 512 &&
+                cfg.cap != 1024 && cfg.cap != 2048 && cfg.cap != 65536)
                 invalid();
         } else if (arg == "-n" && index + 1 < argc) {
             cfg.n = static_cast<u32>(std::strtoul(argv[++index], nullptr, 10));
@@ -404,26 +406,38 @@ Cfg parse(int argc, char **argv) {
             invalid();
         }
     }
-    do {
-        auto comma = cpus.find(',');
-        auto item  = cpus.substr(0, comma);
-        int  cpu   = -1;
-        auto [end, error] =
-            std::from_chars(item.data(), item.data() + item.size(), cpu);
-        if (error != std::errc{} || end != item.data() + item.size() ||
-            cpu < -1 || cpu >= CPU_SETSIZE)
+    auto parse_cpu_list = [&](std::string_view list, std::vector<int> &out) {
+        while (true) {
+            auto comma = list.find(',');
+            auto item  = list.substr(0, comma);
+            int  cpu   = -1;
+            auto [end, error] =
+                std::from_chars(item.data(), item.data() + item.size(), cpu);
+            if (error != std::errc{} || end != item.data() + item.size() ||
+                cpu < -1 || cpu >= CPU_SETSIZE)
+                invalid();
+            out.push_back(cpu);
+            if (comma == std::string_view::npos)
+                break;
+            list.remove_prefix(comma + 1);
+        }
+    };
+    auto bar = cpus.find('|');
+    if (bar == std::string_view::npos) {
+        parse_cpu_list(cpus, cfg.cpu_ps);
+        if (cfg.cpu_ps.size() < 2)
             invalid();
-        cfg.cpu_ps.push_back(cpu);
-        if (comma == std::string_view::npos)
-            break;
-        cpus.remove_prefix(comma + 1);
-    } while (true);
-    if (cfg.cpu_ps.size() < 2 ||
-        (!Suite::multi_producer && cfg.cpu_ps.size() != 2))
+        cfg.cpu_cs.push_back(cfg.cpu_ps.back());
+        cfg.cpu_ps.pop_back();
+    } else {
+        parse_cpu_list(cpus.substr(0, bar), cfg.cpu_ps);
+        parse_cpu_list(cpus.substr(bar + 1), cfg.cpu_cs);
+    }
+    if (cfg.cpu_ps.empty() || cfg.cpu_cs.empty() ||
+        (!Suite::multi_producer && cfg.cpu_ps.size() != 1) ||
+        (!Suite::multi_consumer && cfg.cpu_cs.size() != 1))
         invalid();
-    cfg.cpu_c = cfg.cpu_ps.back();
-    cfg.cpu_ps.pop_back();
-    cfg.cpu_cs.push_back(cfg.cpu_c);
+    cfg.cpu_c = cfg.cpu_cs.front();
     if (cfg.quick) {
         cfg.n    = std::min(cfg.n, 100'000u);
         cfg.runs = std::min(cfg.runs, 1u);
@@ -453,14 +467,15 @@ inline char const *pin_topology(int producer, int consumer) {
 
 template <class Q>
 double once_throughput(Cfg const &cfg, Q &queue) {
-    using T                     = typename Q::value_type;
+    using T = typename Q::value_type;
     auto              producers = cfg.cpu_ps.size();
+    auto              consumers = cfg.cpu_cs.size();
     clock::time_point start, finish;
-    u64               sum = 0;
-    std::barrier      ready(static_cast<std::ptrdiff_t>(producers + 1));
-    std::barrier      timed(static_cast<std::ptrdiff_t>(producers + 1),
+    std::barrier      ready(static_cast<std::ptrdiff_t>(producers + consumers));
+    std::barrier      timed(static_cast<std::ptrdiff_t>(producers + consumers),
                             [&] { start = clock::now(); });
-    auto              producer = [&](std::size_t index) {
+    std::atomic<std::size_t> finished{0};
+    auto                     producer = [&](std::size_t index) {
         pin(cfg.cpu_ps[index]);
         ready.arrive_and_wait();
         for (u32 warm = 0; warm < kWarmThru; ++warm)
@@ -469,26 +484,38 @@ double once_throughput(Cfg const &cfg, Q &queue) {
         for (u32 message = 0; message < cfg.n; ++message)
             queue.push(value<T>(message + 1));
     };
-    auto                     consumer = std::thread([&] {
-        pin(cfg.cpu_c);
+    u64              total = u64(cfg.n) * producers;
+    u64              warm  = u64(kWarmThru) * producers;
+    std::vector<u64> sums(consumers);
+    auto             consumer = [&](std::size_t index) {
+        pin(cfg.cpu_cs[index]);
         ready.arrive_and_wait();
-        T message{};
-        for (u64 warm = 0; warm < u64(kWarmThru) * producers; ++warm)
-            queue.pop(message);
+        auto receive = [&](u64 count) {
+            u64 quota = count / consumers + (index < count % consumers);
+            T   message{};
+            for (u64 i = 0; i < quota; ++i) {
+                queue.pop(message);
+                sums[index] += scalar(message);
+            }
+        };
+        receive(warm);
         timed.arrive_and_wait();
-        for (u64 index = 0; index < u64(cfg.n) * producers; ++index) {
-            queue.pop(message);
-            sum += scalar(message);
-        }
-        finish = clock::now();
-    });
+        receive(total);
+        if (finished.fetch_add(1, std::memory_order_acq_rel) + 1 == consumers)
+            finish = clock::now();
+    };
     std::vector<std::thread> peers;
     for (std::size_t index = 1; index < producers; ++index)
         peers.emplace_back(producer, index);
+    std::vector<std::thread> receivers;
+    for (std::size_t index = 0; index < consumers; ++index)
+        receivers.emplace_back(consumer, index);
     producer(0);
     for (auto &peer : peers)
         peer.join();
-    consumer.join();
+    for (auto &peer : receivers)
+        peer.join();
+    u64 sum      = std::accumulate(sums.begin(), sums.end(), u64{0});
     u64 expected = u64(cfg.n) * (u64(cfg.n) + 1) / 2 * producers;
     if (sum != expected) {
         std::println(stderr, "checksum mismatch");
@@ -556,8 +583,14 @@ template <class Suite, class T>
 void run_payload(Cfg const &cfg, double nspt, char const *payload) {
     if (cfg.cap == 64)
         run_case<Suite, T, 64>(cfg, nspt, payload);
+    else if (cfg.cap == 256)
+        run_case<Suite, T, 256>(cfg, nspt, payload);
+    else if (cfg.cap == 512)
+        run_case<Suite, T, 512>(cfg, nspt, payload);
     else if (cfg.cap == 1024)
         run_case<Suite, T, 1024>(cfg, nspt, payload);
+    else if (cfg.cap == 2048)
+        run_case<Suite, T, 2048>(cfg, nspt, payload);
     else if (cfg.cap == 65536)
         run_case<Suite, T, 65536>(cfg, nspt, payload);
     else if (cfg.quick)
@@ -588,17 +621,20 @@ int benchmark_main(int argc, char **argv) {
             topology += ',';
         topology += pin_topology(cpu, cfg.cpu_c);
     }
-    cpus += std::to_string(cfg.cpu_c);
+    for (int cpu : cfg.cpu_cs)
+        cpus += std::to_string(cpu) + ',';
+    cpus.pop_back();
     auto capacities = cfg.cap     ? std::to_string(cfg.cap)
                       : cfg.quick ? "1024"
                                   : "64,1024,65536";
     std::println(
         "# suite={} n={} runs={} cpus={} [{}] capacities={} payloads={} "
-        "only={} ns/tsc_tick={:.4f} producers={} latency_kind={} api=wait",
+        "only={} ns/tsc_tick={:.4f} producers={} consumers={} "
+        "latency_kind={} api=wait",
         Suite::name, cfg.n, cfg.runs, cpus, topology, capacities,
         cfg.payload ? cfg.payload : "u32,u64,p16,p64",
         cfg.only ? cfg.only : "all", nspt, cfg.cpu_ps.size(),
-        Suite::latency_kind);
+        cfg.cpu_cs.size(), Suite::latency_kind);
     if (cfg.do_pp)
         print_tsc_overhead(nspt);
     if (!cfg.payload || std::string_view(cfg.payload) == "u32")

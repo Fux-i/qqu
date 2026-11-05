@@ -18,6 +18,7 @@ struct MpmcSuite {
     static constexpr std::string_view smt_cpus       = "2,4,6,3,5";
     static constexpr std::string_view latency_kind   = "fan_in_ack_rtt";
     static constexpr bool             multi_producer = true;
+    static constexpr bool             multi_consumer = true;
 
     template <class T, u32 Capacity, class F>
     static void adapters(F &&visit, bool defaults_only = false) {
@@ -60,18 +61,19 @@ struct MpmcSuite {
         auto consumer = [&](std::size_t index) {
             pin(cfg.cpu_cs[index]);
             ready.arrive_and_wait();
-            auto receive = [&](u64 count) {
-                T message{};
-                for (u64 i = 0; i < count; ++i) {
+            auto receive = [&](u64 total) {
+                u64 quota = total / consumers + (index < total % consumers);
+                T   message{};
+                for (u64 i = 0; i < quota; ++i) {
                     queue->pop(message);
                     auto sender = scalar(message);
                     replies[sender].completed.store(++completed[sender],
                                                     std::memory_order_release);
                 }
             };
-            receive(u64(kWarmLat) * producers / consumers);
+            receive(u64(kWarmLat) * producers);
             timed.arrive_and_wait();
-            receive(u64(cfg.n) * producers / consumers);
+            receive(u64(cfg.n) * producers);
         };
         std::vector<std::thread> producer_threads;
         std::vector<std::thread> consumer_threads;

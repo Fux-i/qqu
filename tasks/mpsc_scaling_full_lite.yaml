@@ -17,7 +17,7 @@ benchmark:
   capacities: [512, 1024]
   runs: 1
   messages: 1000000
-  queues: qqu_variants
+  queues: default
 
 output:
   base: results
