@@ -1,5 +1,6 @@
 import csv
 import os
+import platform
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -23,6 +24,40 @@ def run_checked(command: list[str]) -> subprocess.CompletedProcess:
         sys.stderr.write(error.stdout or "")
         sys.stderr.write(error.stderr or "")
         raise
+
+
+def environment() -> dict[str, str]:
+    root = Path(__file__).parent.parent.parent
+    build_dir = Path(os.environ.get("QQU_BUILD_DIR", str(root / "build")))
+
+    compiler = "unknown"
+    cache = build_dir / "CMakeCache.txt"
+    if cache.exists():
+        for line in cache.read_text().splitlines():
+            if line.startswith("CMAKE_CXX_COMPILER:"):
+                compiler = line.split("=", 1)[1]
+                break
+
+    commit = "unknown"
+    if (root / ".git").exists():
+        commit = run_checked(
+            ["git", "-C", str(root), "rev-parse", "--short", "HEAD"]
+        ).stdout.strip()
+
+    cpu = "unknown"
+    cpuinfo = Path("/proc/cpuinfo")
+    if cpuinfo.exists():
+        for line in cpuinfo.read_text().splitlines():
+            if line.startswith("model name"):
+                cpu = line.split(":", 1)[1].strip()
+                break
+
+    return {
+        "cpu": cpu,
+        "kernel": platform.release(),
+        "compiler": compiler,
+        "commit": commit,
+    }
 
 
 def build_target(target: str) -> Path:
@@ -91,6 +126,8 @@ def run_benchmark(
         file.write(f"producer_count: {producer_count}\n")
         file.write(f"cpus: {cpu_spec}\n")
         file.write(f"timestamp: {timestamp}\n")
+        for key, value in environment().items():
+            file.write(f"{key}: {value}\n")
 
     return meta_path, csv_rows
 
