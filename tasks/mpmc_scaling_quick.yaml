@@ -1,0 +1,23 @@
+name: mpmc_scaling_quick
+description: MPMC multi-consumer scaling (quick mode)
+
+system:
+  performance_mode: true
+  producer_cpus: [2, 4]
+  consumer_cpus: [8, 10]
+
+build:
+  target: qqu_bench_mpmc
+
+matrix:
+  producer_counts: [1, 2]
+
+benchmark:
+  element_types: [u32, u64]
+  capacities: [1024]
+  runs: 3
+  messages: 1000000
+  queues: default
+
+output:
+  base: results
