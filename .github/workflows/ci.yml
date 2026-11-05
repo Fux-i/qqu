@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        compiler: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+          if [ "${{ matrix.compiler }}" = "gcc" ]; then
+            sudo apt-get install -y g++-14
+          else
+            sudo apt-get install -y clang-18 libc++-18-dev libc++abi-18-dev
+          fi
+      - name: Configure
+        run: |
+          if [ "${{ matrix.compiler }}" = "gcc" ]; then
+            cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=g++-14 -DCMAKE_BUILD_TYPE=Release
+          else
+            cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_BUILD_TYPE=Release
+          fi
+      - name: Build
+        run: cmake --build build -j
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  sanitizers:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        sanitizer: [asan, tsan]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build g++-14
+      - name: Relax address space randomisation for TSan
+        if: matrix.sanitizer == 'tsan'
+        run: sudo sysctl vm.mmap_rnd_bits=28
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=g++-14 \
+            -DQQU_SANITIZER=${{ matrix.sanitizer }}
+      - name: Build
+        run: cmake --build build -j
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  harness:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      - run: PYTHONPATH=scripts python -m unittest discover -s scripts/tests -v
