@@ -1,0 +1,12 @@
+experiment: spsc_baseline
+producer_count: 1
+cpus: 2|10
+timestamp: 182904
+cpu: AMD Ryzen 5 PRO 6650U with Radeon Graphics
+kernel: 6.18.43
+compiler: /nix/store/0lqhmi94s02sf1j15xz9h6rqi8dnkv8s-clang-wrapper-22.1.8/bin/clang++
+commit: 14a8b6a
+profile: performance
+governor: performance
+epp: performance
+boost: 0

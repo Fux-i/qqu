@@ -1,0 +1,12 @@
+experiment: mpmc_scaling_quick
+producer_count: 2
+cpus: 2,4|8,10
+timestamp: 183243
+cpu: AMD Ryzen 5 PRO 6650U with Radeon Graphics
+kernel: 6.18.43
+compiler: /nix/store/0lqhmi94s02sf1j15xz9h6rqi8dnkv8s-clang-wrapper-22.1.8/bin/clang++
+commit: 14a8b6a
+profile: performance
+governor: performance
+epp: performance
+boost: 0
