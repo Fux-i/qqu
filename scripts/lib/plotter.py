@@ -32,6 +32,27 @@ def _mean(values: list[float]) -> float:
     return statistics.mean(values) if values else float("nan")
 
 
+def _payloads(df: pd.DataFrame) -> list[str]:
+    present = set(df["payload"].unique())
+    return [payload for payload in PAYLOADS if payload in present]
+
+
+def _grid(count: int):
+    columns = 2 if count > 1 else 1
+    rows = (count + columns - 1) // columns
+    fig, axes = plt.subplots(
+        rows,
+        columns,
+        figsize=(11, 3.5 * rows),
+        sharex=True,
+        constrained_layout=True,
+        squeeze=False,
+    )
+    for axis in list(axes.flat)[count:]:
+        axis.set_visible(False)
+    return fig, axes
+
+
 def plot_capacity_comparison(df: pd.DataFrame, output_dir: Path, prefix: str):
     producer_counts = sorted(df["producer_count"].unique())
     suite = _suite_name(df)
@@ -40,6 +61,9 @@ def plot_capacity_comparison(df: pd.DataFrame, output_dir: Path, prefix: str):
     for pc in producer_counts:
         df_pc = df[df["producer_count"] == pc]
         placement = _placement_label(df_pc)
+        payloads = _payloads(df_pc)
+        if not payloads:
+            continue
 
         values_tp = defaultdict(list)
         values_p50 = defaultdict(list)
@@ -58,13 +82,12 @@ def plot_capacity_comparison(df: pd.DataFrame, output_dir: Path, prefix: str):
 
         capacities = sorted(set(k[1] for k in values_tp.keys()))
         queues = sorted(set(k[2] for k in values_tp.keys()))
-
         capacity_labels = {64: "64", 256: "256", 512: "512", 1024: "1K", 2048: "2K", 65536: "64K"}
 
-        fig, axes = plt.subplots(2, 2, figsize=(11, 7), sharex=True, constrained_layout=True)
+        fig, axes = _grid(len(payloads))
         fig.suptitle(f"{suite} ({pc}P/{consumers}C) Throughput | {placement}", fontsize=16)
 
-        for payload, ax in zip(PAYLOADS, axes.flat):
+        for payload, ax in zip(payloads, axes.flat):
             positions = list(range(len(capacities)))
             width = min(0.24, 0.8 / max(1, len(queues)))
 
@@ -81,7 +104,8 @@ def plot_capacity_comparison(df: pd.DataFrame, output_dir: Path, prefix: str):
             ax.set_ylabel("Mops/s")
 
         for ax in axes[-1]:
-            ax.set_xlabel("Capacity")
+            if ax.get_visible():
+                ax.set_xlabel("Capacity")
 
         handles, labels = axes[0, 0].get_legend_handles_labels()
         fig.legend(handles, labels, loc="outside lower center", ncols=3, frameon=False)
@@ -91,10 +115,10 @@ def plot_capacity_comparison(df: pd.DataFrame, output_dir: Path, prefix: str):
         plt.close(fig)
 
         for percentile, values in [("p50", values_p50), ("p99", values_p99)]:
-            fig, axes = plt.subplots(2, 2, figsize=(11, 7), sharex=True, constrained_layout=True)
+            fig, axes = _grid(len(payloads))
             fig.suptitle(f"{suite} ({pc}P/{consumers}C) Latency ({percentile}) | {placement}", fontsize=16)
 
-            for payload, ax in zip(PAYLOADS, axes.flat):
+            for payload, ax in zip(payloads, axes.flat):
                 positions = list(range(len(capacities)))
                 width = min(0.24, 0.8 / max(1, len(queues)))
 
@@ -111,7 +135,9 @@ def plot_capacity_comparison(df: pd.DataFrame, output_dir: Path, prefix: str):
                 ax.set_ylabel(f"{percentile} RTT (ns)")
 
             for ax in axes[-1]:
-                ax.set_xlabel("Capacity")
+                if ax.get_visible():
+                    ax.set_xlabel("Capacity")
+
             handles, labels = axes[0, 0].get_legend_handles_labels()
             fig.legend(handles, labels, loc="outside lower center", ncols=3, frameon=False)
 
@@ -129,6 +155,9 @@ def plot_producer_scaling(df: pd.DataFrame, output_dir: Path, prefix: str):
     consumers = _consumer_count(df)
     capacity = df["capacity"].mode()[0]
     df_cap = df[df["capacity"] == capacity]
+    payloads = _payloads(df_cap)
+    if not payloads:
+        return
 
     values_tp = defaultdict(list)
     values_p99 = defaultdict(list)
@@ -142,10 +171,10 @@ def plot_producer_scaling(df: pd.DataFrame, output_dir: Path, prefix: str):
 
     queues = sorted(set(k[2] for k in values_tp.keys()))
 
-    fig, axes = plt.subplots(2, 2, figsize=(11, 7), constrained_layout=True)
+    fig, axes = _grid(len(payloads))
     fig.suptitle(f"{suite} Throughput vs Producer Count ({consumers}C, capacity={capacity})", fontsize=16)
 
-    for payload, ax in zip(PAYLOADS, axes.flat):
+    for payload, ax in zip(payloads, axes.flat):
         for i, queue in enumerate(queues):
             y = [_mean(values_tp.get((payload, pc, queue), [])) / 1e6 for pc in producer_counts]
             ax.plot(producer_counts, y, marker="o", color=COLORS[i % len(COLORS)], label=queue, linewidth=2)
@@ -163,10 +192,10 @@ def plot_producer_scaling(df: pd.DataFrame, output_dir: Path, prefix: str):
     fig.savefig(output_path, dpi=180)
     plt.close(fig)
 
-    fig, axes = plt.subplots(2, 2, figsize=(11, 7), constrained_layout=True)
+    fig, axes = _grid(len(payloads))
     fig.suptitle(f"{suite} Latency p99 vs Producer Count ({consumers}C, capacity={capacity})", fontsize=16)
 
-    for payload, ax in zip(PAYLOADS, axes.flat):
+    for payload, ax in zip(payloads, axes.flat):
         for i, queue in enumerate(queues):
             y = [_mean(values_p99.get((payload, pc, queue), [])) for pc in producer_counts]
             ax.plot(producer_counts, y, marker="o", color=COLORS[i % len(COLORS)], label=queue, linewidth=2)
