@@ -1,6 +1,7 @@
 import csv
 import os
 import platform
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -24,6 +25,13 @@ def run_checked(command: list[str]) -> subprocess.CompletedProcess:
         sys.stderr.write(error.stdout or "")
         sys.stderr.write(error.stderr or "")
         raise
+
+
+def _read_text(path: str) -> str:
+    try:
+        return Path(path).read_text().strip()
+    except OSError:
+        return "unknown"
 
 
 def environment() -> dict[str, str]:
@@ -52,11 +60,23 @@ def environment() -> dict[str, str]:
                 cpu = line.split(":", 1)[1].strip()
                 break
 
+    profile = "unknown"
+    if shutil.which("powerprofilesctl"):
+        try:
+            profile = run_checked(["powerprofilesctl", "get"]).stdout.strip()
+        except subprocess.CalledProcessError:
+            profile = "unknown"
+
+    cpufreq = "/sys/devices/system/cpu/cpu0/cpufreq"
     return {
         "cpu": cpu,
         "kernel": platform.release(),
         "compiler": compiler,
         "commit": commit,
+        "profile": profile,
+        "governor": _read_text(f"{cpufreq}/scaling_governor"),
+        "epp": _read_text(f"{cpufreq}/energy_performance_preference"),
+        "boost": _read_text("/sys/devices/system/cpu/cpufreq/boost"),
     }
 
 
