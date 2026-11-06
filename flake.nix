@@ -20,7 +20,12 @@
         name = "qqu-dev-shell";
         nativeBuildInputs = with pkgs; [
           (writeShellScriptBin "qqu" ''
-            exec "$(git rev-parse --show-toplevel)/scripts/.venv/bin/qqu" "$@"
+            root="$(git rev-parse --show-toplevel)"
+            if [ ! -x "$root/scripts/.venv/bin/qqu" ]; then
+              echo "qqu: scripts/.venv is missing; re-enter 'nix develop'" >&2
+              exit 1
+            fi
+            exec "$root/scripts/.venv/bin/qqu" "$@"
           '')
           cmake
           gdb
@@ -39,6 +44,14 @@
           LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib";
           NIX_ENFORCE_NO_NATIVE = "";
         };
+        # qqu is a wrapper around the Python harness; create its venv once
+        shellHook = ''
+          root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+          if [ ! -x "$root/scripts/.venv/bin/qqu" ]; then
+            uv venv "$root/scripts/.venv"
+            uv pip install --python "$root/scripts/.venv/bin/python" -e "$root/scripts"
+          fi
+        '';
       };
     };
 }
