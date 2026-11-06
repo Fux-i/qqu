@@ -1,8 +1,37 @@
+import math
+import statistics
 from collections import defaultdict
 from pathlib import Path
 from typing import Optional
 
 import pandas as pd
+
+
+# Two-sided 95% t quantiles, indexed by degrees of freedom.
+_T95 = [
+    0.0, 12.706, 4.303, 3.182, 2.776, 2.571, 2.447, 2.365, 2.306, 2.262,
+    2.228, 2.201, 2.179, 2.160, 2.145, 2.131, 2.120, 2.110, 2.101, 2.093,
+    2.086, 2.080, 2.074, 2.069, 2.064, 2.060, 2.056, 2.052, 2.048, 2.045,
+]
+
+
+def _t95(degrees: int) -> float:
+    return _T95[degrees] if 0 < degrees < len(_T95) else 1.96
+
+
+def _stats(values: list[float]) -> tuple[float, float, float, float]:
+    mean = statistics.mean(values)
+    if len(values) < 2:
+        return mean, 0.0, mean, mean
+    ci = _t95(len(values) - 1) * statistics.stdev(values) / math.sqrt(len(values))
+    return mean, ci, min(values), max(values)
+
+
+def _stats_by_queue(df: pd.DataFrame, column: str) -> dict:
+    return {
+        queue: _stats(group[column].tolist())
+        for queue, group in df.groupby("queue")
+    }
 
 
 def parse_csv(csv_path: Path) -> pd.DataFrame:
@@ -44,17 +73,17 @@ def compute_summary(df: pd.DataFrame, baseline_queue: Optional[str] = None) -> d
             for capacity in sorted(df_p["capacity"].unique()):
                 df_cap = df_p[df_p["capacity"] == capacity]
 
-                throughput_data = df_cap[df_cap["metric"] == "throughput"].groupby("queue")["msgs_per_s"].mean()
-                latency_p50 = df_cap[df_cap["metric"] == "latency"].groupby("queue")["p50_ns"].mean()
-                latency_p99 = df_cap[df_cap["metric"] == "latency"].groupby("queue")["p99_ns"].mean()
-
-                baseline_tp = throughput_data.get(baseline_queue, 0)
-
                 key = (producer_count, payload, int(capacity))
                 summary[key]["capacity"] = int(capacity)
-                summary[key]["throughput"] = {}
-                summary[key]["latency_p50"] = {}
-                summary[key]["latency_p99"] = {}
+                summary[key]["throughput"] = _stats_by_queue(
+                    df_cap[df_cap["metric"] == "throughput"], "msgs_per_s"
+                )
+                summary[key]["latency_p50"] = _stats_by_queue(
+                    df_cap[df_cap["metric"] == "latency"], "p50_ns"
+                )
+                summary[key]["latency_p99"] = _stats_by_queue(
+                    df_cap[df_cap["metric"] == "latency"], "p99_ns"
+                )
                 summary[key]["baseline"] = baseline_queue
                 summary[key]["producer_cpus"] = df_pc["producer_cpus"].iloc[0] if "producer_cpus" in df_pc else "unknown"
                 consumer_column = "consumer_cpus" if "consumer_cpus" in df_pc else "consumer_cpu"
@@ -62,30 +91,26 @@ def compute_summary(df: pd.DataFrame, baseline_queue: Optional[str] = None) -> d
                     df_pc[consumer_column].iloc[0] if consumer_column in df_pc else "unknown"
                 )
 
-                for queue in throughput_data.index:
-                    tp = throughput_data[queue]
-                    diff = ((tp - baseline_tp) / baseline_tp * 100) if baseline_tp else 0
-                    summary[key]["throughput"][queue] = (tp, diff)
-
-                for queue in latency_p50.index:
-                    p50 = latency_p50[queue]
-                    p99 = latency_p99.get(queue, 0)
-                    summary[key]["latency_p50"][queue] = p50
-                    summary[key]["latency_p99"][queue] = p99
-
     return dict(summary)
 
 
-def _queue_table(values: dict, baseline: str, payload: str, digits: int = 1) -> list[str]:
+def _queue_table(values: dict, baseline: str, payload: str) -> list[str]:
     if baseline not in values:
         baseline = next(iter(values))
-    baseline_value = values[baseline]
-    lines = [f"  {payload:4s}  {baseline:30s} {baseline_value:7.1f}  [baseline]"]
+    base_mean, base_ci, base_low, base_high = values[baseline]
+    lines = [
+        f"  {payload:4s}  {baseline:30s} {base_mean:7.1f} ± {base_ci:4.1f} "
+        f"[{base_low:.1f}, {base_high:.1f}]  [baseline]"
+    ]
     for queue, value in values.items():
         if queue == baseline:
             continue
-        diff = ((value - baseline_value) / baseline_value * 100) if baseline_value else 0
-        lines.append(f"        {queue:30s} {value:7.1f}  ({diff:+.1f}%)")
+        mean, ci, low, high = value
+        diff = ((mean - base_mean) / base_mean * 100) if base_mean else 0
+        lines.append(
+            f"        {queue:30s} {mean:7.1f} ± {ci:4.1f} "
+            f"[{low:.1f}, {high:.1f}]  ({diff:+.1f}%)"
+        )
     return lines
 
 
@@ -123,7 +148,12 @@ def format_summary(summary: dict, experiment_name: str, date: str) -> str:
                 if key not in summary or not summary[key]["throughput"]:
                     continue
                 throughput = {
-                    queue: value[0] / 1e6
+                    queue: (
+                        value[0] / 1e6,
+                        value[1] / 1e6,
+                        value[2] / 1e6,
+                        value[3] / 1e6,
+                    )
                     for queue, value in summary[key]["throughput"].items()
                 }
                 lines.extend(_queue_table(throughput, baseline, payload))
