@@ -93,7 +93,8 @@ class QueueSelectionTests(unittest.TestCase):
                 ):
                     run.return_value.stdout = ""
                     run_benchmark(config, 1, self.root, "test")
-                args = run.call_args.args[0]
+                commands = [call.args[0] for call in run.call_args_list]
+                args = next(command for command in commands if command[0] == "taskset")
                 if selection:
                     self.assertEqual(args[args.index("--only") + 1], ",".join(config.benchmark.queues))
                 else:
