@@ -15,7 +15,7 @@ matrix:
 benchmark:
   element_types: [u32, u64, p16, p64]
   capacities: [1024]
-  runs: 3
+  runs: 10
   messages: 1000000
   queues: []
 
