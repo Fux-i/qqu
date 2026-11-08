@@ -2,7 +2,7 @@
 
 qqu_perf_init() {
   local -a sudo=()
-  ((EUID == 0)) || sudo=(sudo -n)
+  ((EUID == 0)) || sudo=(sudo)
 
   local ppd
   ppd="$(command -v powerprofilesctl || true)"
@@ -12,7 +12,7 @@ qqu_perf_init() {
   fi
 
   "${sudo[@]}" "$ppd" set performance || {
-    echo "qqu: cannot set the performance power profile (needs NOPASSWD sudo)" >&2
+    echo "qqu: cannot set the performance power profile (enter the sudo password in a terminal, or configure NOPASSWD)" >&2
     return 1
   }
 
@@ -31,7 +31,7 @@ qqu_perf_init() {
     echo 0 >"$boost"
   elif [[ -e "$boost" ]]; then
     echo 0 | "${sudo[@]}" "$tee" "$boost" >/dev/null || {
-      echo "qqu: cannot disable CPU boost (needs NOPASSWD sudo)" >&2
+      echo "qqu: cannot disable CPU boost (enter the sudo password in a terminal, or configure NOPASSWD)" >&2
       return 1
     }
   fi
