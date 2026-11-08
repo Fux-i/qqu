@@ -1,5 +1,7 @@
 # qqu
 
+English | [中文](README.zh.md)
+
 Bounded, fixed-capacity lock-free queues for C++23: single-producer/single-consumer,
 multi-producer/single-consumer and multi-producer/multi-consumer. The repository also
 contains the benchmark harness used to compare them with
@@ -44,18 +46,45 @@ published or cleared it. `size()`, `full()` and `empty()` are approximate snapsh
 
 ## Build
 
+Requirements: CMake 3.25+, Ninja, Git (the CMake build fetches GoogleTest and the
+reference queues), and a C++23 compiler with `std::print`: GCC 14+ or clang 18+ with
+libc++. The Python harness needs Python 3.12+ and [uv](https://docs.astral.sh/uv/).
+
+With the Nix dev shell (clang 22 + libc++):
+
 ```sh
-nix develop                                  # clang 22 + libc++, cmake, ninja, python
+nix develop
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ctest --test-dir build
 ```
 
-The dev shell creates `scripts/.venv` on first entry; `qqu` runs the Python harness
-from there. Outside Nix, install the harness deps with
-`uv venv scripts/.venv && uv pip install -e scripts`.
+The dev shell creates `scripts/.venv` from `scripts/uv.lock` on first entry; `qqu`
+runs the harness from there.
 
-GCC 14+ and clang 18+ with libc++ also work; the benchmark code uses `std::print`.
+On other systems, Ubuntu 24.04 as an example:
+
+```sh
+sudo apt install g++-14 ninja-build cmake git curl
+curl -LsSf https://astral.sh/uv/install.sh | sh
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+ctest --test-dir build
+```
+
+For clang, install `clang-18` and `libc++-18-dev` and pass
+`-DCMAKE_CXX_COMPILER=clang++-18`; CMake adds `-stdlib=libc++` for Clang.
+
+The harness venv:
+
+```sh
+uv sync --project scripts
+./qqu list
+```
+
+Without uv, create the venv with `python3 -m venv scripts/.venv && scripts/.venv/bin/pip
+install -e scripts` (Ubuntu needs `python3-venv`), then use `scripts/.venv/bin/qqu`.
+
 Sanitizer builds use a separate directory: `-DQQU_SANITIZER=asan`, `tsan` or `ubsan`.
 
 To use the headers from another CMake project:
@@ -75,6 +104,9 @@ capacities, message count, runs and the queue set. `qqu` builds the target, pins
 threads, runs the matrix and writes CSV, a text summary and SVG plots under
 `results/{raw,txt,svg}`. The published tasks run 10 rounds per configuration.
 
+Inside the Nix shell the harness is `qqu`; outside Nix use `./qqu` after
+`uv sync --project scripts`. The commands below use `qqu`.
+
 ```sh
 qqu list
 qqu mpsc_scaling_quick
@@ -88,10 +120,11 @@ per-message round trip measured with `rdtscp`. Summaries report the mean, the 95
 confidence interval over the runs (t distribution) and the min/max range.
 
 Tasks with `performance_mode: true` switch the power profile to `performance` and
-disable CPU boost before the run; they abort if the state cannot be set, and the
-profile, governor, EPP and boost value are written to `meta.txt`. On NixOS this needs
-NOPASSWD sudo for `powerprofilesctl` and
-`tee /sys/devices/system/cpu/cpufreq/boost`.
+disable CPU boost before the run. Run them from an interactive terminal: sudo asks for
+your password. For unattended runs, configure NOPASSWD for `powerprofilesctl` and
+`tee /sys/devices/system/cpu/cpufreq/boost`, or set `performance_mode: false` in the
+task. The harness aborts if the state cannot be set, and writes the profile, governor,
+EPP and boost value to `meta.txt`.
 
 ## Results
 
