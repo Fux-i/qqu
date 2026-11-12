@@ -23,11 +23,21 @@ The harness writes these fields into `raw/*.meta.txt` for every producer count.
 
 ## Commands
 
+Inside the Nix dev shell:
+
 ```sh
 nix develop
 qqu spsc_baseline
 qqu mpsc_scaling_quick
 qqu mpmc_scaling_quick
+```
+
+On other systems, after `uv sync --project scripts`:
+
+```sh
+./qqu spsc_baseline
+./qqu mpsc_scaling_quick
+./qqu mpmc_scaling_quick
 ```
 
 ## Protocol
