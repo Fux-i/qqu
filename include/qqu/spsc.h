@@ -14,13 +14,12 @@ namespace qqu {
 template <typename T, size_t N, size_t ALIGN = DEFAULT_ALIGN>
     requires(N > 1 && std::has_single_bit(N) &&
              std::is_trivially_copyable_v<T> &&
-             std::is_default_constructible_v<T> &&
-             std::is_trivially_destructible_v<T>)
+             std::is_default_constructible_v<T>)
 class spsc {
     static constexpr size_t mask         = N - 1;
     static constexpr size_t shuffle_bits = N < (1u << 12) ? 0u : 6u;
     static constexpr size_t mask_elem    = (1u << shuffle_bits) - 1;
-    static constexpr size_t mask_hi      = ~0u << (2 * shuffle_bits);
+    static constexpr size_t mask_hi      = ~size_t{} << (2 * shuffle_bits);
 
     enum : uint8_t {
         EMPTY  = 0,
@@ -72,9 +71,9 @@ class spsc {
 
     [[nodiscard]]
     auto size() const noexcept -> size_t {
-        const int n = static_cast<int>(_head.load(std::memory_order_relaxed) -
-                                       _tail.load(std::memory_order_relaxed));
-        return n < 0 ? 0 : static_cast<size_t>(n);
+        const size_t head = _head.load(std::memory_order_relaxed);
+        const size_t tail = _tail.load(std::memory_order_relaxed);
+        return head > tail ? head - tail : 0;
     }
 
     [[nodiscard]]
@@ -91,8 +90,7 @@ class spsc {
     [[nodiscard]]
     auto try_emplace(Args &&...args) noexcept -> bool {
         const size_t head = _head.load(std::memory_order_relaxed);
-        if (static_cast<int>(head - _tail.load(std::memory_order_relaxed)) >=
-            static_cast<int>(N)) [[unlikely]]
+        if (head - _tail.load(std::memory_order_relaxed) >= N) [[unlikely]]
             return false;
         _head.store(head + 1, std::memory_order_relaxed);
         do_push(head, T(std::forward<Args>(args)...));
@@ -127,8 +125,7 @@ class spsc {
     [[nodiscard]]
     auto try_pop(T &v) noexcept -> bool {
         const size_t tail = _tail.load(std::memory_order_relaxed);
-        if (static_cast<int>(_head.load(std::memory_order_relaxed) - tail) <= 0)
-            [[unlikely]]
+        if (_head.load(std::memory_order_relaxed) == tail) [[unlikely]]
             return false;
         _tail.store(tail + 1, std::memory_order_relaxed);
         v = do_pop(tail);
