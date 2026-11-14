@@ -12,7 +12,7 @@
 |---|---|---|---|
 | `qqu::spsc<T, N>` | 1 | 1 | 环形缓冲，每个槽位一个状态字节；生产者写 head，消费者写 tail |
 | `qqu::mpsc<T, N>` | N | 1 | Vyukov 有界环形队列；每个 cell 一个序号，生产者对 head 做 CAS |
-| `qqu::mpmc<T, N>` | N | M | 相同的 cell 结构，head 和 tail 都做 CAS |
+| `qqu::mpmc<T, N>` | N | M | 与 `mpsc` 相同的 cell，每个填充到 64 字节；head 和 tail 都做 CAS |
 
 `N` 是编译期的 2 的幂。元素按值存储；`T` 必须 trivially copyable、默认构造且 trivially destructible。
 
@@ -98,47 +98,48 @@ qqu plot mpsc
 
 ## 结果
 
-v1.0.0，AMD Ryzen 5 PRO 6650U（6C/12T，15 W），NixOS 26.05，clang 22.1.8 + libc++，隔离核，容量 1024，每生产者 100 万条消息，10 轮。harness 会把电源配置设为 `performance` 并关闭 CPU boost。原始数据、summary、完整 payload 矩阵和图在 [docs/benchmarks](docs/benchmarks)。
+v1.1.0，AMD Ryzen 5 PRO 6650U（6C/12T，15 W），NixOS 26.05，clang 22.1.8 + libc++，隔离核，容量 1024，每生产者 100 万条消息，10 轮。harness 会把电源配置设为 `performance` 并关闭 CPU boost。原始数据、summary、完整 payload 矩阵和图在 [docs/benchmarks](docs/benchmarks)。
 
 吞吐，Mops/s（10 轮的均值 ± 95% 置信区间）：
 
 | 场景 | qqu | atomic_queue | rigtorp |
 |---|---:|---:|---:|
-| spsc u32 (1P/1C) | 171.2 ± 8.4 | 178.2 ± 4.2 | 53.1 ± 7.0 |
-| spsc u64 (1P/1C) | 142.1 ± 4.4 | 149.9 ± 2.9 | 71.5 ± 1.1 |
-| mpsc u32 (2P/1C) | 22.0 ± 0.4 | 15.4 ± 0.1 | 24.3 ± 0.4 |
-| mpsc u32 (3P/1C) | 29.9 ± 0.0 | 15.2 ± 0.0 | 35.4 ± 0.1 |
-| mpsc u32 (4P/1C) | 35.9 ± 0.2 | 16.0 ± 0.1 | 35.7 ± 0.1 |
-| mpmc u32 (1P/2C) | 14.1 ± 0.1 | 10.9 ± 0.1 | 18.9 ± 0.2 |
-| mpmc u32 (2P/2C) | 12.7 ± 0.1 | 8.9 ± 0.1 | 18.2 ± 0.6 |
+| spsc u32 (1P/1C) | 169.0 ± 5.1 | 176.5 ± 6.6 | 58.2 ± 1.3 |
+| spsc u64 (1P/1C) | 142.7 ± 2.0 | 148.9 ± 2.6 | 68.3 ± 3.9 |
+| mpsc u32 (2P/1C) | 22.6 ± 0.3 | 15.3 ± 0.0 | 25.0 ± 0.5 |
+| mpsc u32 (3P/1C) | 29.9 ± 0.0 | 15.2 ± 0.0 | 35.1 ± 0.2 |
+| mpsc u32 (4P/1C) | 35.9 ± 0.1 | 16.0 ± 0.0 | 36.8 ± 0.1 |
+| mpmc u32 (1P/2C) | 18.1 ± 0.3 | 10.7 ± 0.0 | 17.9 ± 0.4 |
+| mpmc u32 (2P/2C) | 18.9 ± 0.5 | 9.0 ± 0.0 | 18.5 ± 0.5 |
 
 延迟，ns（10 轮的均值 ± 95% 置信区间；往返）：
 
 | 场景 | qqu | atomic_queue | rigtorp |
 |---|---:|---:|---:|
-| spsc u32 p50 (1P/1C) | 130.2 ± 0.0 | 170.3 ± 0.0 | 219.4 ± 2.3 |
-| spsc u32 p99 (1P/1C) | 185.4 ± 3.8 | 199.4 ± 2.3 | 250.5 ± 0.0 |
-| mpsc u32 p50 (2P/1C) | 210.4 ± 0.0 | 221.4 ± 2.3 | 200.4 ± 0.0 |
-| mpsc u32 p99 (2P/1C) | 280.5 ± 0.0 | 340.6 ± 0.0 | 292.6 ± 4.5 |
-| mpmc u32 p50 (2P/2C) | 240.5 ± 0.0 | 320.6 ± 0.0 | 220.4 ± 0.0 |
-| mpmc u32 p99 (2P/2C) | 380.7 ± 0.0 | 507.0 ± 3.7 | 274.5 ± 6.0 |
+| spsc u32 p50 (1P/1C) | 130.2 ± 0.0 | 170.3 ± 0.0 | 220.4 ± 0.0 |
+| spsc u32 p99 (1P/1C) | 186.4 ± 9.1 | 191.4 ± 2.3 | 250.5 ± 0.0 |
+| mpsc u32 p50 (2P/1C) | 210.4 ± 0.0 | 240.5 ± 0.0 | 200.4 ± 0.0 |
+| mpsc u32 p99 (2P/1C) | 278.5 ± 3.0 | 350.7 ± 0.0 | 289.5 ± 2.3 |
+| mpmc u32 p50 (2P/2C) | 220.4 ± 0.0 | 320.6 ± 0.0 | 220.4 ± 0.0 |
+| mpmc u32 p99 (2P/2C) | 285.5 ± 5.1 | 510.9 ± 0.0 | 278.5 ± 3.0 |
 
 `± 0.0` 表示 10 轮都落在同一个值上；延迟计时器的分辨率约 10 ns，低于这个的差异没有意义。
 
 数据说明：
 
-- `spsc` 的吞吐在 4 字节和 8 字节 payload 上与 `atomic_queue` 打平（落后 4-5%，在置信区间内），是 `rigtorp::SPSCQueue` 的 2-3 倍。u32/u64/p16 上它的 p50 比 `atomic_queue` 低 24%，比 `rigtorp::SPSCQueue` 低 37-41%。64 字节 payload 上吞吐落后 `atomic_queue` 17%，p50/p99 分别高 49%/39%。
-- `mpsc` 的吞吐是 `atomic_queue` 的 1.4-2.2 倍；2-3 个生产者时落后 `rigtorp::MPMCQueue` 9-16%，4 个生产者时打平。p99 比 `atomic_queue` 低 18-38%；对 `rigtorp::MPMCQueue`，2 个生产者时打平，3-4 个生产者时低 13-26%。rigtorp 是通用 MPMC 队列，这里不是同规格对比。
-- `mpmc` 的吞吐落后 `rigtorp::MPMCQueue` 25-30%，领先 `atomic_queue` 29-43%。p99 比 `atomic_queue` 低 18-25%，但大多数 payload 上高于 `rigtorp::MPMCQueue`。
+- `spsc` 在 u32/u64 上吞吐落后 `atomic_queue` 4%，是 `rigtorp::SPSCQueue` 的 2.1-2.9 倍。u32/u64/p16 上它的 p50 比 `atomic_queue` 低 24%，比 `rigtorp::SPSCQueue` 低 32-41%。64 字节 payload 上吞吐落后 `atomic_queue` 18%，p50 低 21%，p99 高 4%。
+- `mpsc` 的吞吐是 `atomic_queue` 的 1.2-2.2 倍。u32/u64/p16 上，2-3 个生产者时落后 `rigtorp::MPMCQueue` 9-17%，4 个生产者时差距在 5% 以内；p64 差距在 3% 以内。u32/u64 的 p99 比 `atomic_queue` 低 20-40%；对 `rigtorp::MPMCQueue`，2 个生产者时低 4-6%，3-4 个生产者时低 14-30%。p64 的 p50 比 `rigtorp::MPMCQueue` 高 36-45%。rigtorp 是通用 MPMC 队列，这里不是同规格对比。
+- `mpmc` 的吞吐与 `rigtorp::MPMCQueue` 相差 4% 以内，是 `atomic_queue` 的 1.5-2.1 倍。p99 比 `atomic_queue` 低 21-44%；对 `rigtorp::MPMCQueue`，1 个生产者时高 13-14%，2 个生产者时高 1-5%。
+
+`mpmc` 的每个 cell 填充到 64 字节后，多消费者场景下 4-16 字节 payload 的吞吐提高 31-50%；`mpsc` 填充后在 1 个生产者、以及容量 64 时 3-4 个生产者下吞吐下降，所以 `mpsc` 不填充。表格和方法见 [docs/benchmarks/cell_padding.md](docs/benchmarks/cell_padding.md)。
 
 ## 限制
 
 - 只支持 Linux x86-64；自旋用 `_mm_pause`。
 - 容量在编译期固定，没有动态或可扩容版本。
 - `T` 必须 trivially copyable、默认构造、trivially destructible；不支持非平凡类型。
-- `mpsc`/`mpmc` 的 cell 没有填充，相邻 cell 可能共享 cache line。
+- `mpsc` 的 cell 没有填充，相邻 cell 可能共享 cache line。`mpmc` 的 cell 填充到 64 字节：u32/u64 的 cell 内存是原来的 4 倍，容量 1024 时 1P/1C 在 4-16 字节 payload 上的吞吐比不填充低 43-57%。
 - 延迟是两核往返，包含交接成本。计时器分辨率约 10 ns，低于这个的差异不要当真。
-- 这次运行里 16 字节 payload 的吞吐 CI 约为均值的 47%；该行保留在 CSV 和 summary 里，但没有用在上面表格中。
 - 所有数据来自一台 15 W 笔记本 CPU，生产者和消费者之间不共享 SMT 核。不要拿去和服务器结果比较。
 
 ## License

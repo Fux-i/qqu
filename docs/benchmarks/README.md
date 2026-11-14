@@ -9,7 +9,7 @@ top-level README.
 
 | field | value |
 |---|---|
-| version | v1.0.0 |
+| version | v1.1.0 (`raw/*.meta.txt` records the parent commit: the run used the v1.1.0 change before it was committed) |
 | CPU | AMD Ryzen 5 PRO 6650U with Radeon Graphics (6 cores / 12 threads, 15 W) |
 | kernel | 6.18.43 (NixOS 26.05) |
 | isolation | `isolcpus=2-11 nohz_full=2-11 rcu_nocbs=2-11 irqaffinity=0-1` |
@@ -60,6 +60,7 @@ On other systems, after `uv sync --project scripts`:
 - `svg/spsc.1p.p50.svg`, `svg/spsc.1p.p99.svg` — SPSC round-trip latency
 - `svg/mpsc.scaling.throughput.svg` — MPSC throughput vs producer count
 - `svg/mpsc.scaling.p99.svg` — MPSC p99 vs producer count
+- `cell_padding.md`, `padding/raw/` — padded vs unpadded cells in `mpsc` and `mpmc`
 
 Only the plots that show qqu's stronger configurations are included; the full matrix
 is in the CSV and summary files.
@@ -69,8 +70,6 @@ is in the CSV and summary files.
 - Latency is a two-core round trip; the timer resolves about 10 ns, so differences
   below that are not meaningful. `± 0.0` in a summary means all runs produced the
   same tick value.
-- The 16-byte SPSC throughput has a 47% CI in this run (63.6-215.6 Mops/s); treat it
-  as unstable.
 - One machine only: a 15 W laptop CPU, single socket, no NUMA, no SMT sharing
   between producer and consumer.
 - `mpsc` is compared against two MPMC implementations because no dedicated MPSC

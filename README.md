@@ -19,7 +19,7 @@ them as a starting point, not a claim of being the fastest queue available.
 |---|---|---|---|
 | `qqu::spsc<T, N>` | 1 | 1 | ring with one state byte per slot; producer owns head, consumer owns tail |
 | `qqu::mpsc<T, N>` | N | 1 | Vyukov bounded ring; one sequence number per cell, CAS on head |
-| `qqu::mpmc<T, N>` | N | M | same cell layout, CAS on head and tail |
+| `qqu::mpmc<T, N>` | N | M | same cells as `mpsc`, each padded to 64 bytes; CAS on head and tail |
 
 `N` is a compile-time power of two. Elements are stored by value; `T` must be
 trivially copyable, default constructible and trivially destructible.
@@ -129,52 +129,56 @@ EPP and boost value to `meta.txt`.
 
 ## Results
 
-v1.0.0, AMD Ryzen 5 PRO 6650U (6C/12T, 15 W), NixOS 26.05, clang 22.1.8 + libc++,
-isolated cores, capacity 1024, 1M messages per producer, 10 runs. The harness sets the
-`performance` profile and disables CPU boost. Raw data, summaries, the full payload
+v1.1.0, AMD Ryzen 5 PRO 6650U (6C/12T, 15 W), NixOS 26.05, clang 22.1.8 + libc++,
+isolated cores, capacity 1024, 1M messages per producer, 10 runs. The harness sets the `performance` profile and disables CPU boost. Raw data, summaries, the full payload
 matrix and the plots are in [docs/benchmarks](docs/benchmarks).
 
 Throughput, Mops/s (mean ± 95% CI over 10 runs):
 
 | workload | qqu | atomic_queue | rigtorp |
 |---|---:|---:|---:|
-| spsc u32 (1P/1C) | 171.2 ± 8.4 | 178.2 ± 4.2 | 53.1 ± 7.0 |
-| spsc u64 (1P/1C) | 142.1 ± 4.4 | 149.9 ± 2.9 | 71.5 ± 1.1 |
-| mpsc u32 (2P/1C) | 22.0 ± 0.4 | 15.4 ± 0.1 | 24.3 ± 0.4 |
-| mpsc u32 (3P/1C) | 29.9 ± 0.0 | 15.2 ± 0.0 | 35.4 ± 0.1 |
-| mpsc u32 (4P/1C) | 35.9 ± 0.2 | 16.0 ± 0.1 | 35.7 ± 0.1 |
-| mpmc u32 (1P/2C) | 14.1 ± 0.1 | 10.9 ± 0.1 | 18.9 ± 0.2 |
-| mpmc u32 (2P/2C) | 12.7 ± 0.1 | 8.9 ± 0.1 | 18.2 ± 0.6 |
+| spsc u32 (1P/1C) | 169.0 ± 5.1 | 176.5 ± 6.6 | 58.2 ± 1.3 |
+| spsc u64 (1P/1C) | 142.7 ± 2.0 | 148.9 ± 2.6 | 68.3 ± 3.9 |
+| mpsc u32 (2P/1C) | 22.6 ± 0.3 | 15.3 ± 0.0 | 25.0 ± 0.5 |
+| mpsc u32 (3P/1C) | 29.9 ± 0.0 | 15.2 ± 0.0 | 35.1 ± 0.2 |
+| mpsc u32 (4P/1C) | 35.9 ± 0.1 | 16.0 ± 0.0 | 36.8 ± 0.1 |
+| mpmc u32 (1P/2C) | 18.1 ± 0.3 | 10.7 ± 0.0 | 17.9 ± 0.4 |
+| mpmc u32 (2P/2C) | 18.9 ± 0.5 | 9.0 ± 0.0 | 18.5 ± 0.5 |
 
 Latency, ns (mean ± 95% CI over 10 runs; round trip):
 
 | workload | qqu | atomic_queue | rigtorp |
 |---|---:|---:|---:|
-| spsc u32 p50 (1P/1C) | 130.2 ± 0.0 | 170.3 ± 0.0 | 219.4 ± 2.3 |
-| spsc u32 p99 (1P/1C) | 185.4 ± 3.8 | 199.4 ± 2.3 | 250.5 ± 0.0 |
-| mpsc u32 p50 (2P/1C) | 210.4 ± 0.0 | 221.4 ± 2.3 | 200.4 ± 0.0 |
-| mpsc u32 p99 (2P/1C) | 280.5 ± 0.0 | 340.6 ± 0.0 | 292.6 ± 4.5 |
-| mpmc u32 p50 (2P/2C) | 240.5 ± 0.0 | 320.6 ± 0.0 | 220.4 ± 0.0 |
-| mpmc u32 p99 (2P/2C) | 380.7 ± 0.0 | 507.0 ± 3.7 | 274.5 ± 6.0 |
+| spsc u32 p50 (1P/1C) | 130.2 ± 0.0 | 170.3 ± 0.0 | 220.4 ± 0.0 |
+| spsc u32 p99 (1P/1C) | 186.4 ± 9.1 | 191.4 ± 2.3 | 250.5 ± 0.0 |
+| mpsc u32 p50 (2P/1C) | 210.4 ± 0.0 | 240.5 ± 0.0 | 200.4 ± 0.0 |
+| mpsc u32 p99 (2P/1C) | 278.5 ± 3.0 | 350.7 ± 0.0 | 289.5 ± 2.3 |
+| mpmc u32 p50 (2P/2C) | 220.4 ± 0.0 | 320.6 ± 0.0 | 220.4 ± 0.0 |
+| mpmc u32 p99 (2P/2C) | 285.5 ± 5.1 | 510.9 ± 0.0 | 278.5 ± 3.0 |
 
 `± 0.0` means every run landed on the same value; the latency timer resolves about
 10 ns, so differences below that are not meaningful.
 
 What the numbers say:
 
-- `spsc` throughput is on par with `atomic_queue` on 4- and 8-byte payloads (4-5%
-  behind, inside the CI) and 2-3x `rigtorp::SPSCQueue`. Its p50 is 24% lower than
-  `atomic_queue` and 37-41% lower than `rigtorp::SPSCQueue` on u32/u64/p16. On
-  64-byte payloads it is 17% behind `atomic_queue` on throughput and its p50/p99 are
-  49%/39% higher.
-- `mpsc` is 1.4-2.2x `atomic_queue` on throughput, 9-16% behind
-  `rigtorp::MPMCQueue` at 2-3 producers and level at 4. Its p99 is 18-38% lower than
-  `atomic_queue`; against `rigtorp::MPMCQueue` it is level at 2 producers and 13-26%
-  lower at 3-4 producers. rigtorp is a general MPMC queue, so this is not a
-  like-for-like win.
-- `mpmc` is 25-30% behind `rigtorp::MPMCQueue` on throughput and 29-43% ahead of
-  `atomic_queue`. Its p99 is 18-25% lower than `atomic_queue` and higher than
-  `rigtorp::MPMCQueue` on most payloads.
+- `spsc` throughput is 4% behind `atomic_queue` on u32/u64 and 2.1-2.9x
+  `rigtorp::SPSCQueue`. Its p50 is 24% lower than `atomic_queue` and 32-41% lower
+  than `rigtorp::SPSCQueue` on u32/u64/p16. On 64-byte payloads it is 18% behind
+  `atomic_queue` on throughput; its p50 is 21% lower and its p99 4% higher.
+- `mpsc` is 1.2-2.2x `atomic_queue` on throughput. On u32/u64/p16 it is 9-17% behind
+  `rigtorp::MPMCQueue` at 2-3 producers and within 5% at 4; on p64 it is within 3%.
+  On u32/u64 its p99 is 20-40% lower than `atomic_queue`; against
+  `rigtorp::MPMCQueue` it is 4-6% lower at 2 producers and 14-30% lower at 3-4. On
+  p64 its p50 is 36-45% higher than `rigtorp::MPMCQueue`. rigtorp is a general MPMC
+  queue, so this is not a like-for-like win.
+- `mpmc` is within 4% of `rigtorp::MPMCQueue` on throughput and 1.5-2.1x
+  `atomic_queue`. Its p99 is 21-44% lower than `atomic_queue`; against
+  `rigtorp::MPMCQueue` it is 13-14% higher at 1 producer and 1-5% higher at 2.
+
+Padding each `mpmc` cell to 64 bytes raised its multi-consumer throughput by 31-50% on
+4- to 16-byte payloads; padding `mpsc` cells lost throughput at 1 producer and at 3-4
+producers with capacity 64, so `mpsc` is unpadded. Tables and method are in
+[docs/benchmarks/cell_padding.md](docs/benchmarks/cell_padding.md).
 
 ## Limitations
 
@@ -182,11 +186,11 @@ What the numbers say:
 - Capacity is fixed at compile time; there is no dynamic or resizable variant.
 - `T` must be trivially copyable, default constructible and trivially destructible;
   there is no support for non-trivial element types.
-- Cells in `mpsc`/`mpmc` are not padded, so adjacent cells can share a cache line.
+- `mpsc` cells are not padded, so adjacent cells can share a cache line. `mpmc` cells
+  are padded to 64 bytes: cell memory is 4x larger for u32/u64, and at capacity 1024
+  1P/1C throughput on 4- to 16-byte payloads is 43-57% lower than unpadded.
 - Latency is a two-core round trip and includes the hand-off cost. Its timer resolves
   about 10 ns; do not read differences below that.
-- The 16-byte payload's throughput CI is about 47% of its mean in this run; that row
-  is kept in the CSV and summary but is not used in the tables above.
 - All measurements are from a single 15 W laptop CPU, without SMT sharing between
   producer and consumer. Do not compare these numbers with server results.
 

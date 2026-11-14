@@ -1,5 +1,5 @@
 Benchmark Summary: spsc_baseline.bench
-Date: 2026-11-06
+Date: 2026-11-14
 
 === 1 Producer(s) ===
 
@@ -8,43 +8,43 @@ CPU placement: producers=2; consumer=10
 Configuration: capacity=1024
 
 Throughput (Mops/s):
-  p16   qqu::spsc                        108.4 ± 50.4 [63.6, 215.6]  [baseline]
-        atomic_queue::AtomicQueue2        97.0 ± 42.7 [61.2, 216.2]  (-10.5%)
-        rigtorp::SPSCQueue                55.3 ±  7.0 [39.3, 68.5]  (-49.0%)
-  p64   qqu::spsc                         16.1 ±  0.0 [16.0, 16.2]  [baseline]
-        atomic_queue::AtomicQueue2        19.5 ±  0.0 [19.5, 19.6]  (+21.3%)
-        rigtorp::SPSCQueue                16.7 ±  0.2 [16.3, 16.9]  (+3.4%)
-  u32   qqu::spsc                        171.2 ±  8.4 [156.8, 193.4]  [baseline]
-        atomic_queue::AtomicQueue2       178.2 ±  4.2 [170.7, 187.4]  (+4.1%)
-        rigtorp::SPSCQueue                53.1 ±  7.0 [29.1, 59.8]  (-69.0%)
-  u64   qqu::spsc                        142.1 ±  4.4 [132.7, 151.4]  [baseline]
-        atomic_queue::AtomicQueue2       149.9 ±  2.9 [144.1, 155.3]  (+5.5%)
-        rigtorp::SPSCQueue                71.5 ±  1.1 [69.4, 73.5]  (-49.7%)
+  p16   qqu::spsc                         63.9 ±  0.1 [63.5, 64.1]  [baseline]
+        atomic_queue::AtomicQueue2        62.1 ±  0.4 [61.3, 63.2]  (-2.8%)
+        rigtorp::SPSCQueue                64.8 ±  4.5 [53.7, 71.1]  (+1.4%)
+  p64   qqu::spsc                         15.3 ±  0.1 [15.1, 15.4]  [baseline]
+        atomic_queue::AtomicQueue2        18.6 ±  0.0 [18.5, 18.6]  (+21.5%)
+        rigtorp::SPSCQueue                18.0 ±  0.2 [17.2, 18.2]  (+17.5%)
+  u32   qqu::spsc                        169.0 ±  5.1 [161.2, 182.0]  [baseline]
+        atomic_queue::AtomicQueue2       176.5 ±  6.6 [158.2, 188.3]  (+4.4%)
+        rigtorp::SPSCQueue                58.2 ±  1.3 [55.2, 59.7]  (-65.6%)
+  u64   qqu::spsc                        142.7 ±  2.0 [138.7, 147.2]  [baseline]
+        atomic_queue::AtomicQueue2       148.9 ±  2.6 [143.6, 154.3]  (+4.3%)
+        rigtorp::SPSCQueue                68.3 ±  3.9 [53.8, 72.4]  (-52.1%)
 
 Latency p50 (ns):
   p16   qqu::spsc                        130.2 ±  0.0 [130.2, 130.2]  [baseline]
         atomic_queue::AtomicQueue2       170.3 ±  0.0 [170.3, 170.3]  (+30.8%)
-        rigtorp::SPSCQueue               205.4 ±  7.7 [190.4, 220.4]  (+57.7%)
-  p64   qqu::spsc                        268.5 ±  3.0 [260.5, 270.5]  [baseline]
-        atomic_queue::AtomicQueue2       180.3 ±  0.0 [180.3, 180.3]  (-32.8%)
-        rigtorp::SPSCQueue               230.4 ±  0.0 [230.4, 230.4]  (-14.2%)
+        rigtorp::SPSCQueue               190.4 ± 12.2 [180.3, 220.4]  (+46.2%)
+  p64   qqu::spsc                        140.3 ±  0.0 [140.3, 140.3]  [baseline]
+        atomic_queue::AtomicQueue2       178.3 ±  3.0 [170.3, 180.3]  (+27.1%)
+        rigtorp::SPSCQueue               230.4 ±  0.0 [230.4, 230.4]  (+64.3%)
   u32   qqu::spsc                        130.2 ±  0.0 [130.2, 130.2]  [baseline]
         atomic_queue::AtomicQueue2       170.3 ±  0.0 [170.3, 170.3]  (+30.8%)
-        rigtorp::SPSCQueue               219.4 ±  2.3 [210.4, 220.4]  (+68.5%)
+        rigtorp::SPSCQueue               220.4 ±  0.0 [220.4, 220.4]  (+69.2%)
   u64   qqu::spsc                        130.2 ±  0.0 [130.2, 130.2]  [baseline]
         atomic_queue::AtomicQueue2       170.3 ±  0.0 [170.3, 170.3]  (+30.8%)
         rigtorp::SPSCQueue               220.4 ±  0.0 [220.4, 220.4]  (+69.2%)
 
 Latency p99 (ns):
-  p16   qqu::spsc                        186.4 ±  3.7 [180.3, 190.4]  [baseline]
-        atomic_queue::AtomicQueue2       197.4 ±  3.5 [190.4, 200.4]  (+5.9%)
-        rigtorp::SPSCQueue               276.5 ±  3.7 [270.5, 280.5]  (+48.4%)
-  p64   qqu::spsc                        320.6 ±  0.0 [320.6, 320.6]  [baseline]
-        atomic_queue::AtomicQueue2       230.4 ±  0.0 [230.4, 230.4]  (-28.1%)
-        rigtorp::SPSCQueue               280.5 ±  0.0 [280.5, 280.5]  (-12.5%)
-  u32   qqu::spsc                        185.4 ±  3.8 [180.3, 190.4]  [baseline]
-        atomic_queue::AtomicQueue2       199.4 ±  2.3 [190.4, 200.4]  (+7.6%)
-        rigtorp::SPSCQueue               250.5 ±  0.0 [250.5, 250.5]  (+35.1%)
-  u64   qqu::spsc                        202.4 ±  6.6 [190.4, 210.4]  [baseline]
-        atomic_queue::AtomicQueue2       199.4 ±  2.3 [190.4, 200.4]  (-1.5%)
-        rigtorp::SPSCQueue               260.5 ±  4.8 [250.5, 270.5]  (+28.7%)
+  p16   qqu::spsc                        195.4 ±  3.8 [190.4, 200.4]  [baseline]
+        atomic_queue::AtomicQueue2       207.4 ±  3.5 [200.4, 210.4]  (+6.2%)
+        rigtorp::SPSCQueue               272.5 ±  3.0 [270.5, 280.5]  (+39.5%)
+  p64   qqu::spsc                        240.5 ±  0.0 [240.5, 240.5]  [baseline]
+        atomic_queue::AtomicQueue2       230.4 ±  0.0 [230.4, 230.4]  (-4.2%)
+        rigtorp::SPSCQueue               280.5 ±  0.0 [280.5, 280.5]  (+16.7%)
+  u32   qqu::spsc                        186.4 ±  9.1 [180.3, 220.4]  [baseline]
+        atomic_queue::AtomicQueue2       191.4 ±  2.3 [190.4, 200.4]  (+2.7%)
+        rigtorp::SPSCQueue               250.5 ±  0.0 [250.5, 250.5]  (+34.4%)
+  u64   qqu::spsc                        210.4 ±  0.0 [210.4, 210.4]  [baseline]
+        atomic_queue::AtomicQueue2       196.4 ±  3.7 [190.4, 200.4]  (-6.7%)
+        rigtorp::SPSCQueue               252.5 ±  4.5 [250.5, 270.5]  (+20.0%)

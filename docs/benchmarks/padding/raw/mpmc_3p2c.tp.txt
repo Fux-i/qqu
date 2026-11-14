@@ -1,0 +1,280 @@
+# suite=mpmc n=1000000 runs=10 cpus=2,4,6,8,10 [cross-core,cross-core,cross-core] capacities=64 payloads=u32 only=qqu::mpmc,qqu::mpmc_pad64,qqu::mpmc_pad128 ns/tsc_tick=0.0000 producers=3 consumers=2 latency_kind=fan_in_ack_rtt api=wait
+---- payload=u32 bytes=4 capacity=64 ----
+raw metric=throughput queue=qqu::mpmc payload=u32 payload_bytes=4 capacity=64 run=1 msgs_per_s=11549193.893 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u32 payload_bytes=4 capacity=64 run=2 msgs_per_s=12063023.459 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u32 payload_bytes=4 capacity=64 run=3 msgs_per_s=12187818.079 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u32 payload_bytes=4 capacity=64 run=4 msgs_per_s=12104912.111 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u32 payload_bytes=4 capacity=64 run=5 msgs_per_s=12134361.406 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u32 payload_bytes=4 capacity=64 run=6 msgs_per_s=12087056.346 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u32 payload_bytes=4 capacity=64 run=7 msgs_per_s=12057595.177 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u32 payload_bytes=4 capacity=64 run=8 msgs_per_s=12690050.908 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u32 payload_bytes=4 capacity=64 run=9 msgs_per_s=12676368.534 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u32 payload_bytes=4 capacity=64 run=10 msgs_per_s=12779547.272 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+qqu::mpmc                      mean=12.2m 95%CI=[12.0m,12.5m] median=12.1m stdev=0.4m min=11.5m max=12.8m msgs/s
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u32 payload_bytes=4 capacity=64 run=1 msgs_per_s=15990807.120 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u32 payload_bytes=4 capacity=64 run=2 msgs_per_s=15896016.063 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u32 payload_bytes=4 capacity=64 run=3 msgs_per_s=16286924.446 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u32 payload_bytes=4 capacity=64 run=4 msgs_per_s=15555764.936 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u32 payload_bytes=4 capacity=64 run=5 msgs_per_s=16183863.972 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u32 payload_bytes=4 capacity=64 run=6 msgs_per_s=16000422.667 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u32 payload_bytes=4 capacity=64 run=7 msgs_per_s=16000064.768 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u32 payload_bytes=4 capacity=64 run=8 msgs_per_s=16043829.346 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u32 payload_bytes=4 capacity=64 run=9 msgs_per_s=16009818.587 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u32 payload_bytes=4 capacity=64 run=10 msgs_per_s=15986199.519 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+qqu::mpmc_pad64                mean=16.0m 95%CI=[15.9m,16.1m] median=16.0m stdev=0.2m min=15.6m max=16.3m msgs/s
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u32 payload_bytes=4 capacity=64 run=1 msgs_per_s=17838526.974 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u32 payload_bytes=4 capacity=64 run=2 msgs_per_s=16551287.367 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u32 payload_bytes=4 capacity=64 run=3 msgs_per_s=16533292.049 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u32 payload_bytes=4 capacity=64 run=4 msgs_per_s=16527809.742 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u32 payload_bytes=4 capacity=64 run=5 msgs_per_s=16509432.573 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u32 payload_bytes=4 capacity=64 run=6 msgs_per_s=16516913.137 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u32 payload_bytes=4 capacity=64 run=7 msgs_per_s=16048831.416 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u32 payload_bytes=4 capacity=64 run=8 msgs_per_s=16530651.456 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u32 payload_bytes=4 capacity=64 run=9 msgs_per_s=16508386.277 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u32 payload_bytes=4 capacity=64 run=10 msgs_per_s=16523655.348 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+qqu::mpmc_pad128               mean=16.6m 95%CI=[16.3m,16.9m] median=16.5m stdev=0.5m min=16.0m max=17.8m msgs/s
+# suite=mpmc n=1000000 runs=10 cpus=2,4,6,8,10 [cross-core,cross-core,cross-core] capacities=64 payloads=u64 only=qqu::mpmc,qqu::mpmc_pad64,qqu::mpmc_pad128 ns/tsc_tick=0.0000 producers=3 consumers=2 latency_kind=fan_in_ack_rtt api=wait
+---- payload=u64 bytes=8 capacity=64 ----
+raw metric=throughput queue=qqu::mpmc payload=u64 payload_bytes=8 capacity=64 run=1 msgs_per_s=12121468.998 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u64 payload_bytes=8 capacity=64 run=2 msgs_per_s=12265551.997 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u64 payload_bytes=8 capacity=64 run=3 msgs_per_s=12282860.672 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u64 payload_bytes=8 capacity=64 run=4 msgs_per_s=12189171.307 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u64 payload_bytes=8 capacity=64 run=5 msgs_per_s=12196247.576 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u64 payload_bytes=8 capacity=64 run=6 msgs_per_s=12171689.865 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u64 payload_bytes=8 capacity=64 run=7 msgs_per_s=12268752.320 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u64 payload_bytes=8 capacity=64 run=8 msgs_per_s=12555044.243 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u64 payload_bytes=8 capacity=64 run=9 msgs_per_s=11499351.933 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u64 payload_bytes=8 capacity=64 run=10 msgs_per_s=12199109.027 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+qqu::mpmc                      mean=12.2m 95%CI=[12.0m,12.4m] median=12.2m stdev=0.3m min=11.5m max=12.6m msgs/s
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u64 payload_bytes=8 capacity=64 run=1 msgs_per_s=16054359.720 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u64 payload_bytes=8 capacity=64 run=2 msgs_per_s=16268462.868 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u64 payload_bytes=8 capacity=64 run=3 msgs_per_s=16342781.518 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u64 payload_bytes=8 capacity=64 run=4 msgs_per_s=16420709.615 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u64 payload_bytes=8 capacity=64 run=5 msgs_per_s=16423941.074 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u64 payload_bytes=8 capacity=64 run=6 msgs_per_s=16417470.803 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u64 payload_bytes=8 capacity=64 run=7 msgs_per_s=16427871.492 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u64 payload_bytes=8 capacity=64 run=8 msgs_per_s=16416571.150 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u64 payload_bytes=8 capacity=64 run=9 msgs_per_s=16319875.212 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u64 payload_bytes=8 capacity=64 run=10 msgs_per_s=16426951.360 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+qqu::mpmc_pad64                mean=16.4m 95%CI=[16.3m,16.4m] median=16.4m stdev=0.1m min=16.1m max=16.4m msgs/s
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u64 payload_bytes=8 capacity=64 run=1 msgs_per_s=16674217.957 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u64 payload_bytes=8 capacity=64 run=2 msgs_per_s=16627822.134 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u64 payload_bytes=8 capacity=64 run=3 msgs_per_s=17491318.082 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u64 payload_bytes=8 capacity=64 run=4 msgs_per_s=16679937.688 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u64 payload_bytes=8 capacity=64 run=5 msgs_per_s=16685507.757 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u64 payload_bytes=8 capacity=64 run=6 msgs_per_s=16668901.689 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u64 payload_bytes=8 capacity=64 run=7 msgs_per_s=16674869.869 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u64 payload_bytes=8 capacity=64 run=8 msgs_per_s=16591817.751 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u64 payload_bytes=8 capacity=64 run=9 msgs_per_s=16766909.217 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u64 payload_bytes=8 capacity=64 run=10 msgs_per_s=16649494.378 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+qqu::mpmc_pad128               mean=16.8m 95%CI=[16.6m,16.9m] median=16.7m stdev=0.3m min=16.6m max=17.5m msgs/s
+# suite=mpmc n=1000000 runs=10 cpus=2,4,6,8,10 [cross-core,cross-core,cross-core] capacities=64 payloads=p16 only=qqu::mpmc,qqu::mpmc_pad64,qqu::mpmc_pad128 ns/tsc_tick=0.0000 producers=3 consumers=2 latency_kind=fan_in_ack_rtt api=wait
+---- payload=p16 bytes=16 capacity=64 ----
+raw metric=throughput queue=qqu::mpmc payload=p16 payload_bytes=16 capacity=64 run=1 msgs_per_s=12409908.203 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p16 payload_bytes=16 capacity=64 run=2 msgs_per_s=12360317.952 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p16 payload_bytes=16 capacity=64 run=3 msgs_per_s=12685412.419 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p16 payload_bytes=16 capacity=64 run=4 msgs_per_s=12465687.882 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p16 payload_bytes=16 capacity=64 run=5 msgs_per_s=12479228.324 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p16 payload_bytes=16 capacity=64 run=6 msgs_per_s=11468566.010 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p16 payload_bytes=16 capacity=64 run=7 msgs_per_s=11646455.944 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p16 payload_bytes=16 capacity=64 run=8 msgs_per_s=11467207.268 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p16 payload_bytes=16 capacity=64 run=9 msgs_per_s=11581985.571 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p16 payload_bytes=16 capacity=64 run=10 msgs_per_s=11478706.263 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+qqu::mpmc                      mean=12.0m 95%CI=[11.6m,12.4m] median=12.0m stdev=0.5m min=11.5m max=12.7m msgs/s
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p16 payload_bytes=16 capacity=64 run=1 msgs_per_s=15970264.815 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p16 payload_bytes=16 capacity=64 run=2 msgs_per_s=16024341.188 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p16 payload_bytes=16 capacity=64 run=3 msgs_per_s=16567465.195 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p16 payload_bytes=16 capacity=64 run=4 msgs_per_s=15860794.082 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p16 payload_bytes=16 capacity=64 run=5 msgs_per_s=15873888.013 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p16 payload_bytes=16 capacity=64 run=6 msgs_per_s=15552258.926 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p16 payload_bytes=16 capacity=64 run=7 msgs_per_s=16074067.933 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p16 payload_bytes=16 capacity=64 run=8 msgs_per_s=15655731.794 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p16 payload_bytes=16 capacity=64 run=9 msgs_per_s=16078161.043 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p16 payload_bytes=16 capacity=64 run=10 msgs_per_s=15706271.776 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+qqu::mpmc_pad64                mean=15.9m 95%CI=[15.7m,16.1m] median=15.9m stdev=0.3m min=15.6m max=16.6m msgs/s
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p16 payload_bytes=16 capacity=64 run=1 msgs_per_s=17849956.868 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p16 payload_bytes=16 capacity=64 run=2 msgs_per_s=16616590.908 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p16 payload_bytes=16 capacity=64 run=3 msgs_per_s=16603339.592 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p16 payload_bytes=16 capacity=64 run=4 msgs_per_s=16871276.920 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p16 payload_bytes=16 capacity=64 run=5 msgs_per_s=16906673.617 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p16 payload_bytes=16 capacity=64 run=6 msgs_per_s=16878535.800 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p16 payload_bytes=16 capacity=64 run=7 msgs_per_s=16887311.209 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p16 payload_bytes=16 capacity=64 run=8 msgs_per_s=16872307.380 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p16 payload_bytes=16 capacity=64 run=9 msgs_per_s=16893156.120 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p16 payload_bytes=16 capacity=64 run=10 msgs_per_s=16882538.813 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+qqu::mpmc_pad128               mean=16.9m 95%CI=[16.7m,17.2m] median=16.9m stdev=0.3m min=16.6m max=17.8m msgs/s
+# suite=mpmc n=1000000 runs=10 cpus=2,4,6,8,10 [cross-core,cross-core,cross-core] capacities=64 payloads=p64 only=qqu::mpmc,qqu::mpmc_pad64,qqu::mpmc_pad128 ns/tsc_tick=0.0000 producers=3 consumers=2 latency_kind=fan_in_ack_rtt api=wait
+---- payload=p64 bytes=64 capacity=64 ----
+raw metric=throughput queue=qqu::mpmc payload=p64 payload_bytes=64 capacity=64 run=1 msgs_per_s=16000177.922 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p64 payload_bytes=64 capacity=64 run=2 msgs_per_s=16344078.682 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p64 payload_bytes=64 capacity=64 run=3 msgs_per_s=15936783.074 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p64 payload_bytes=64 capacity=64 run=4 msgs_per_s=15801209.409 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p64 payload_bytes=64 capacity=64 run=5 msgs_per_s=15875027.298 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p64 payload_bytes=64 capacity=64 run=6 msgs_per_s=15817919.215 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p64 payload_bytes=64 capacity=64 run=7 msgs_per_s=15840588.345 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p64 payload_bytes=64 capacity=64 run=8 msgs_per_s=15834029.309 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p64 payload_bytes=64 capacity=64 run=9 msgs_per_s=15818343.660 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p64 payload_bytes=64 capacity=64 run=10 msgs_per_s=15810480.071 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+qqu::mpmc                      mean=15.9m 95%CI=[15.8m,16.0m] median=15.8m stdev=0.2m min=15.8m max=16.3m msgs/s
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p64 payload_bytes=64 capacity=64 run=1 msgs_per_s=15998585.810 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p64 payload_bytes=64 capacity=64 run=2 msgs_per_s=17196307.886 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p64 payload_bytes=64 capacity=64 run=3 msgs_per_s=15715586.029 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p64 payload_bytes=64 capacity=64 run=4 msgs_per_s=16048870.651 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p64 payload_bytes=64 capacity=64 run=5 msgs_per_s=16054030.417 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p64 payload_bytes=64 capacity=64 run=6 msgs_per_s=16045806.799 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p64 payload_bytes=64 capacity=64 run=7 msgs_per_s=16042178.095 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p64 payload_bytes=64 capacity=64 run=8 msgs_per_s=16045851.770 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p64 payload_bytes=64 capacity=64 run=9 msgs_per_s=16036527.961 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p64 payload_bytes=64 capacity=64 run=10 msgs_per_s=16035667.001 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+qqu::mpmc_pad64                mean=16.1m 95%CI=[15.8m,16.4m] median=16.0m stdev=0.4m min=15.7m max=17.2m msgs/s
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p64 payload_bytes=64 capacity=64 run=1 msgs_per_s=16384620.534 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p64 payload_bytes=64 capacity=64 run=2 msgs_per_s=17440341.634 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p64 payload_bytes=64 capacity=64 run=3 msgs_per_s=17462537.023 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p64 payload_bytes=64 capacity=64 run=4 msgs_per_s=16382752.564 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p64 payload_bytes=64 capacity=64 run=5 msgs_per_s=16379818.910 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p64 payload_bytes=64 capacity=64 run=6 msgs_per_s=16355813.616 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p64 payload_bytes=64 capacity=64 run=7 msgs_per_s=16366693.632 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p64 payload_bytes=64 capacity=64 run=8 msgs_per_s=16369447.250 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p64 payload_bytes=64 capacity=64 run=9 msgs_per_s=16380251.776 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p64 payload_bytes=64 capacity=64 run=10 msgs_per_s=16363323.646 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+qqu::mpmc_pad128               mean=16.6m 95%CI=[16.3m,16.9m] median=16.4m stdev=0.5m min=16.4m max=17.5m msgs/s
+# suite=mpmc n=1000000 runs=10 cpus=2,4,6,8,10 [cross-core,cross-core,cross-core] capacities=1024 payloads=u32 only=qqu::mpmc,qqu::mpmc_pad64,qqu::mpmc_pad128 ns/tsc_tick=0.0000 producers=3 consumers=2 latency_kind=fan_in_ack_rtt api=wait
+---- payload=u32 bytes=4 capacity=1024 ----
+raw metric=throughput queue=qqu::mpmc payload=u32 payload_bytes=4 capacity=1024 run=1 msgs_per_s=12039227.608 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u32 payload_bytes=4 capacity=1024 run=2 msgs_per_s=12342608.649 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u32 payload_bytes=4 capacity=1024 run=3 msgs_per_s=12103574.890 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u32 payload_bytes=4 capacity=1024 run=4 msgs_per_s=12059377.626 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u32 payload_bytes=4 capacity=1024 run=5 msgs_per_s=12336137.289 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u32 payload_bytes=4 capacity=1024 run=6 msgs_per_s=12377043.817 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u32 payload_bytes=4 capacity=1024 run=7 msgs_per_s=12334183.959 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u32 payload_bytes=4 capacity=1024 run=8 msgs_per_s=12633441.888 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u32 payload_bytes=4 capacity=1024 run=9 msgs_per_s=12125843.802 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u32 payload_bytes=4 capacity=1024 run=10 msgs_per_s=12332947.756 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+qqu::mpmc                      mean=12.3m 95%CI=[12.1m,12.4m] median=12.3m stdev=0.2m min=12.0m max=12.6m msgs/s
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u32 payload_bytes=4 capacity=1024 run=1 msgs_per_s=17013261.781 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u32 payload_bytes=4 capacity=1024 run=2 msgs_per_s=18942227.501 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u32 payload_bytes=4 capacity=1024 run=3 msgs_per_s=16701174.820 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u32 payload_bytes=4 capacity=1024 run=4 msgs_per_s=16792757.982 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u32 payload_bytes=4 capacity=1024 run=5 msgs_per_s=16809019.733 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u32 payload_bytes=4 capacity=1024 run=6 msgs_per_s=16810745.307 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u32 payload_bytes=4 capacity=1024 run=7 msgs_per_s=16969179.722 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u32 payload_bytes=4 capacity=1024 run=8 msgs_per_s=16797828.404 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u32 payload_bytes=4 capacity=1024 run=9 msgs_per_s=16791114.290 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u32 payload_bytes=4 capacity=1024 run=10 msgs_per_s=16809679.686 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+qqu::mpmc_pad64                mean=17.0m 95%CI=[16.6m,17.5m] median=16.8m stdev=0.7m min=16.7m max=18.9m msgs/s
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u32 payload_bytes=4 capacity=1024 run=1 msgs_per_s=18025149.048 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u32 payload_bytes=4 capacity=1024 run=2 msgs_per_s=19488645.360 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u32 payload_bytes=4 capacity=1024 run=3 msgs_per_s=19510041.848 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u32 payload_bytes=4 capacity=1024 run=4 msgs_per_s=17049141.035 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u32 payload_bytes=4 capacity=1024 run=5 msgs_per_s=17044690.730 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u32 payload_bytes=4 capacity=1024 run=6 msgs_per_s=17060116.455 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u32 payload_bytes=4 capacity=1024 run=7 msgs_per_s=17067105.721 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u32 payload_bytes=4 capacity=1024 run=8 msgs_per_s=17049694.107 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u32 payload_bytes=4 capacity=1024 run=9 msgs_per_s=17039978.710 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u32 payload_bytes=4 capacity=1024 run=10 msgs_per_s=17016347.986 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+qqu::mpmc_pad128               mean=17.6m 95%CI=[16.9m,18.4m] median=17.1m stdev=1.0m min=17.0m max=19.5m msgs/s
+# suite=mpmc n=1000000 runs=10 cpus=2,4,6,8,10 [cross-core,cross-core,cross-core] capacities=1024 payloads=u64 only=qqu::mpmc,qqu::mpmc_pad64,qqu::mpmc_pad128 ns/tsc_tick=0.0000 producers=3 consumers=2 latency_kind=fan_in_ack_rtt api=wait
+---- payload=u64 bytes=8 capacity=1024 ----
+raw metric=throughput queue=qqu::mpmc payload=u64 payload_bytes=8 capacity=1024 run=1 msgs_per_s=12231691.128 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u64 payload_bytes=8 capacity=1024 run=2 msgs_per_s=12502588.974 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u64 payload_bytes=8 capacity=1024 run=3 msgs_per_s=11615207.818 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u64 payload_bytes=8 capacity=1024 run=4 msgs_per_s=12091690.320 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u64 payload_bytes=8 capacity=1024 run=5 msgs_per_s=12141066.174 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u64 payload_bytes=8 capacity=1024 run=6 msgs_per_s=12147305.122 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u64 payload_bytes=8 capacity=1024 run=7 msgs_per_s=12181804.812 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u64 payload_bytes=8 capacity=1024 run=8 msgs_per_s=12161967.291 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u64 payload_bytes=8 capacity=1024 run=9 msgs_per_s=12121187.144 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=u64 payload_bytes=8 capacity=1024 run=10 msgs_per_s=12096066.086 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+qqu::mpmc                      mean=12.1m 95%CI=[12.0m,12.3m] median=12.1m stdev=0.2m min=11.6m max=12.5m msgs/s
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u64 payload_bytes=8 capacity=1024 run=1 msgs_per_s=18295873.549 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u64 payload_bytes=8 capacity=1024 run=2 msgs_per_s=18866413.198 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u64 payload_bytes=8 capacity=1024 run=3 msgs_per_s=18874544.745 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u64 payload_bytes=8 capacity=1024 run=4 msgs_per_s=17006095.001 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u64 payload_bytes=8 capacity=1024 run=5 msgs_per_s=16992444.780 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u64 payload_bytes=8 capacity=1024 run=6 msgs_per_s=16988294.148 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u64 payload_bytes=8 capacity=1024 run=7 msgs_per_s=17003237.535 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u64 payload_bytes=8 capacity=1024 run=8 msgs_per_s=16991840.269 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u64 payload_bytes=8 capacity=1024 run=9 msgs_per_s=16994924.868 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=u64 payload_bytes=8 capacity=1024 run=10 msgs_per_s=16998570.749 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+qqu::mpmc_pad64                mean=17.5m 95%CI=[16.9m,18.1m] median=17.0m stdev=0.8m min=17.0m max=18.9m msgs/s
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u64 payload_bytes=8 capacity=1024 run=1 msgs_per_s=17119806.253 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u64 payload_bytes=8 capacity=1024 run=2 msgs_per_s=19787851.802 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u64 payload_bytes=8 capacity=1024 run=3 msgs_per_s=16906175.802 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u64 payload_bytes=8 capacity=1024 run=4 msgs_per_s=17104685.935 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u64 payload_bytes=8 capacity=1024 run=5 msgs_per_s=17118225.484 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u64 payload_bytes=8 capacity=1024 run=6 msgs_per_s=17203149.069 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u64 payload_bytes=8 capacity=1024 run=7 msgs_per_s=17112085.604 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u64 payload_bytes=8 capacity=1024 run=8 msgs_per_s=17104251.674 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u64 payload_bytes=8 capacity=1024 run=9 msgs_per_s=17110047.893 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=u64 payload_bytes=8 capacity=1024 run=10 msgs_per_s=17127320.217 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+qqu::mpmc_pad128               mean=17.4m 95%CI=[16.8m,18.0m] median=17.1m stdev=0.9m min=16.9m max=19.8m msgs/s
+# suite=mpmc n=1000000 runs=10 cpus=2,4,6,8,10 [cross-core,cross-core,cross-core] capacities=1024 payloads=p16 only=qqu::mpmc,qqu::mpmc_pad64,qqu::mpmc_pad128 ns/tsc_tick=0.0000 producers=3 consumers=2 latency_kind=fan_in_ack_rtt api=wait
+---- payload=p16 bytes=16 capacity=1024 ----
+raw metric=throughput queue=qqu::mpmc payload=p16 payload_bytes=16 capacity=1024 run=1 msgs_per_s=12533025.567 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p16 payload_bytes=16 capacity=1024 run=2 msgs_per_s=12772066.027 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p16 payload_bytes=16 capacity=1024 run=3 msgs_per_s=12562600.275 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p16 payload_bytes=16 capacity=1024 run=4 msgs_per_s=12451480.833 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p16 payload_bytes=16 capacity=1024 run=5 msgs_per_s=12420238.213 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p16 payload_bytes=16 capacity=1024 run=6 msgs_per_s=12528054.699 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p16 payload_bytes=16 capacity=1024 run=7 msgs_per_s=12508927.987 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p16 payload_bytes=16 capacity=1024 run=8 msgs_per_s=12559995.856 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p16 payload_bytes=16 capacity=1024 run=9 msgs_per_s=12488723.411 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p16 payload_bytes=16 capacity=1024 run=10 msgs_per_s=12483007.610 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+qqu::mpmc                      mean=12.5m 95%CI=[12.5m,12.6m] median=12.5m stdev=0.1m min=12.4m max=12.8m msgs/s
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p16 payload_bytes=16 capacity=1024 run=1 msgs_per_s=16946911.242 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p16 payload_bytes=16 capacity=1024 run=2 msgs_per_s=18954232.447 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p16 payload_bytes=16 capacity=1024 run=3 msgs_per_s=19017500.881 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p16 payload_bytes=16 capacity=1024 run=4 msgs_per_s=16780139.376 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p16 payload_bytes=16 capacity=1024 run=5 msgs_per_s=16792113.174 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p16 payload_bytes=16 capacity=1024 run=6 msgs_per_s=16813919.518 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p16 payload_bytes=16 capacity=1024 run=7 msgs_per_s=16798248.091 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p16 payload_bytes=16 capacity=1024 run=8 msgs_per_s=16774721.032 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p16 payload_bytes=16 capacity=1024 run=9 msgs_per_s=16787806.734 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p16 payload_bytes=16 capacity=1024 run=10 msgs_per_s=16789668.524 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+qqu::mpmc_pad64                mean=17.2m 95%CI=[16.6m,17.9m] median=16.8m stdev=0.9m min=16.8m max=19.0m msgs/s
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p16 payload_bytes=16 capacity=1024 run=1 msgs_per_s=17062018.178 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p16 payload_bytes=16 capacity=1024 run=2 msgs_per_s=19611734.336 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p16 payload_bytes=16 capacity=1024 run=3 msgs_per_s=18118242.805 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p16 payload_bytes=16 capacity=1024 run=4 msgs_per_s=17067450.610 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p16 payload_bytes=16 capacity=1024 run=5 msgs_per_s=17056876.450 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p16 payload_bytes=16 capacity=1024 run=6 msgs_per_s=17052433.157 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p16 payload_bytes=16 capacity=1024 run=7 msgs_per_s=16959085.488 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p16 payload_bytes=16 capacity=1024 run=8 msgs_per_s=17059093.000 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p16 payload_bytes=16 capacity=1024 run=9 msgs_per_s=17059546.894 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p16 payload_bytes=16 capacity=1024 run=10 msgs_per_s=17061128.876 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+qqu::mpmc_pad128               mean=17.4m 95%CI=[16.8m,18.0m] median=17.1m stdev=0.8m min=17.0m max=19.6m msgs/s
+# suite=mpmc n=1000000 runs=10 cpus=2,4,6,8,10 [cross-core,cross-core,cross-core] capacities=1024 payloads=p64 only=qqu::mpmc,qqu::mpmc_pad64,qqu::mpmc_pad128 ns/tsc_tick=0.0000 producers=3 consumers=2 latency_kind=fan_in_ack_rtt api=wait
+---- payload=p64 bytes=64 capacity=1024 ----
+raw metric=throughput queue=qqu::mpmc payload=p64 payload_bytes=64 capacity=1024 run=1 msgs_per_s=16920625.515 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p64 payload_bytes=64 capacity=1024 run=2 msgs_per_s=17091615.503 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p64 payload_bytes=64 capacity=1024 run=3 msgs_per_s=17091200.503 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p64 payload_bytes=64 capacity=1024 run=4 msgs_per_s=17087114.679 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p64 payload_bytes=64 capacity=1024 run=5 msgs_per_s=17073674.322 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p64 payload_bytes=64 capacity=1024 run=6 msgs_per_s=17049699.049 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p64 payload_bytes=64 capacity=1024 run=7 msgs_per_s=17042430.579 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p64 payload_bytes=64 capacity=1024 run=8 msgs_per_s=17060547.314 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p64 payload_bytes=64 capacity=1024 run=9 msgs_per_s=17016962.156 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc payload=p64 payload_bytes=64 capacity=1024 run=10 msgs_per_s=17048975.934 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+qqu::mpmc                      mean=17.0m 95%CI=[17.0m,17.1m] median=17.1m stdev=0.1m min=16.9m max=17.1m msgs/s
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p64 payload_bytes=64 capacity=1024 run=1 msgs_per_s=18022753.618 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p64 payload_bytes=64 capacity=1024 run=2 msgs_per_s=19192079.352 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p64 payload_bytes=64 capacity=1024 run=3 msgs_per_s=18912482.814 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p64 payload_bytes=64 capacity=1024 run=4 msgs_per_s=18544324.893 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p64 payload_bytes=64 capacity=1024 run=5 msgs_per_s=18951997.616 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p64 payload_bytes=64 capacity=1024 run=6 msgs_per_s=19145479.434 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p64 payload_bytes=64 capacity=1024 run=7 msgs_per_s=19124136.966 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p64 payload_bytes=64 capacity=1024 run=8 msgs_per_s=18820639.742 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p64 payload_bytes=64 capacity=1024 run=9 msgs_per_s=19116420.441 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad64 payload=p64 payload_bytes=64 capacity=1024 run=10 msgs_per_s=19134325.362 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+qqu::mpmc_pad64                mean=18.9m 95%CI=[18.6m,19.2m] median=19.0m stdev=0.4m min=18.0m max=19.2m msgs/s
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p64 payload_bytes=64 capacity=1024 run=1 msgs_per_s=17944636.096 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p64 payload_bytes=64 capacity=1024 run=2 msgs_per_s=19224595.055 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p64 payload_bytes=64 capacity=1024 run=3 msgs_per_s=17755620.552 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p64 payload_bytes=64 capacity=1024 run=4 msgs_per_s=19214736.627 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p64 payload_bytes=64 capacity=1024 run=5 msgs_per_s=19157736.990 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p64 payload_bytes=64 capacity=1024 run=6 msgs_per_s=19137296.785 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p64 payload_bytes=64 capacity=1024 run=7 msgs_per_s=19134364.171 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p64 payload_bytes=64 capacity=1024 run=8 msgs_per_s=19154259.628 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p64 payload_bytes=64 capacity=1024 run=9 msgs_per_s=19140156.295 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+raw metric=throughput queue=qqu::mpmc_pad128 payload=p64 payload_bytes=64 capacity=1024 run=10 msgs_per_s=19138033.314 suite=mpmc producers=3 latency_kind=fan_in_ack_rtt api=wait n=1000000
+qqu::mpmc_pad128               mean=18.9m 95%CI=[18.5m,19.3m] median=19.1m stdev=0.6m min=17.8m max=19.2m msgs/s
