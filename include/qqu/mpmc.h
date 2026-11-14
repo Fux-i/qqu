@@ -14,8 +14,7 @@ namespace qqu {
 template <typename T, size_t N, size_t ALIGN = DEFAULT_ALIGN>
     requires(N > 1 && std::has_single_bit(N) &&
              std::is_trivially_copyable_v<T> &&
-             std::is_default_constructible_v<T> &&
-             std::is_trivially_destructible_v<T>)
+             std::is_default_constructible_v<T>)
 class mpmc {
     static constexpr size_t mask = N - 1;
 
@@ -64,7 +63,7 @@ class mpmc {
     template <typename... Args>
     [[nodiscard]]
     auto try_emplace(Args &&...args) noexcept -> bool {
-        size_t head = _head.load(std::memory_order_acquire);
+        size_t head = _head.load(std::memory_order_relaxed);
         cell  *slot = nullptr;
         for (;;) {
             slot = &_cells[head & mask];
@@ -111,7 +110,7 @@ class mpmc {
 
     [[nodiscard]]
     auto try_pop(T &v) noexcept -> bool {
-        size_t pos  = _tail.load(std::memory_order_acquire);
+        size_t pos  = _tail.load(std::memory_order_relaxed);
         cell  *slot = nullptr;
         for (;;) {
             slot = &_cells[pos & mask];
