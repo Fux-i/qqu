@@ -18,7 +18,7 @@ template <typename T, size_t N, size_t ALIGN = DEFAULT_ALIGN>
 class mpmc {
     static constexpr size_t mask = N - 1;
 
-    struct cell {
+    struct alignas(ALIGN) cell {
         std::atomic<size_t> seq;
         T                   v;
     };

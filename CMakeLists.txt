@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.25)
 
 set(PROJECT_NAME "qqu")
 
-project(${PROJECT_NAME} VERSION 1.0.0 LANGUAGES CXX)
+project(${PROJECT_NAME} VERSION 1.1.0 LANGUAGES CXX)
 
 # Enforce the use of C++23 standard
 set(CMAKE_CXX_STANDARD 23)
