@@ -48,8 +48,8 @@ published or cleared it. `size()`, `full()` and `empty()` are approximate snapsh
 ## Build
 
 Requirements: CMake 3.25+, Ninja, Git (the CMake build fetches GoogleTest and the
-reference queues), and a C++23 compiler with `std::print`: GCC 14+ or clang 18+ with
-libc++. The Python harness needs Python 3.12+ and [uv](https://docs.astral.sh/uv/).
+reference queues), and a C++23 compiler with `std::print`: GCC 14+ or clang 21+ with
+libc++ (`std::ranges::iota`). The Python harness needs Python 3.12+ and [uv](https://docs.astral.sh/uv/).
 
 With the Nix dev shell (clang 22 + libc++):
 
@@ -73,8 +73,9 @@ cmake --build build
 ctest --test-dir build
 ```
 
-For clang, install `clang-18` and `libc++-18-dev` and pass
-`-DCMAKE_CXX_COMPILER=clang++-18`; CMake adds `-stdlib=libc++` for Clang.
+For clang, install `clang-22` and `libc++-22-dev` (Ubuntu 24.04 needs the
+[apt.llvm.org](https://apt.llvm.org) repository) and pass
+`-DCMAKE_CXX_COMPILER=clang++-22`; CMake adds `-stdlib=libc++` for Clang.
 
 The harness venv:
 

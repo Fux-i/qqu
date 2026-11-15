@@ -12,6 +12,12 @@ jobs:
         compiler: [gcc, clang]
     steps:
       - uses: actions/checkout@v4
+      - name: Add LLVM apt repository
+        if: matrix.compiler == 'clang'
+        run: |
+          sudo install -d -m 0755 /etc/apt/keyrings
+          curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/apt.llvm.org.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/apt.llvm.org.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-22 main" | sudo tee /etc/apt/sources.list.d/llvm.list
       - name: Install toolchain
         run: |
           sudo apt-get update
@@ -19,14 +25,14 @@ jobs:
           if [ "${{ matrix.compiler }}" = "gcc" ]; then
             sudo apt-get install -y g++-14
           else
-            sudo apt-get install -y clang-18 libc++-18-dev libc++abi-18-dev
+            sudo apt-get install -y clang-22 libc++-22-dev libc++abi-22-dev
           fi
       - name: Configure
         run: |
           if [ "${{ matrix.compiler }}" = "gcc" ]; then
             cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=g++-14 -DCMAKE_BUILD_TYPE=Release
           else
-            cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_BUILD_TYPE=Release
+            cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=clang++-22 -DCMAKE_BUILD_TYPE=Release
           fi
       - name: Build
         run: cmake --build build -j

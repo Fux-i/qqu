@@ -34,7 +34,7 @@ bool ok = queue.try_push(1);   // false only when full
 
 ## 构建
 
-依赖：CMake 3.25+、Ninja、Git（CMake 构建会拉取 GoogleTest 和三个对比用的队列），以及支持 `std::print` 的 C++23 编译器：GCC 14+，或 clang 18+ 配 libc++。Python harness 需要 Python 3.12+ 和 [uv](https://docs.astral.sh/uv/)。
+依赖：CMake 3.25+、Ninja、Git（CMake 构建会拉取 GoogleTest 和三个对比用的队列），以及支持 `std::print` 的 C++23 编译器：GCC 14+，或 clang 21+ 配 libc++（需要 `std::ranges::iota`）。Python harness 需要 Python 3.12+ 和 [uv](https://docs.astral.sh/uv/)。
 
 使用 Nix devShell（clang 22 + libc++）：
 
@@ -57,7 +57,7 @@ cmake --build build
 ctest --test-dir build
 ```
 
-用 clang 时安装 `clang-18` 和 `libc++-18-dev`，并传 `-DCMAKE_CXX_COMPILER=clang++-18`；CMake 会为 Clang 加 `-stdlib=libc++`。
+用 clang 时安装 `clang-22` 和 `libc++-22-dev`（Ubuntu 24.04 需要添加 [apt.llvm.org](https://apt.llvm.org) 源），并传 `-DCMAKE_CXX_COMPILER=clang++-22`；CMake 会为 Clang 加 `-stdlib=libc++`。
 
 harness 的 venv：
 
